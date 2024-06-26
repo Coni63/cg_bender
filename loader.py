@@ -33,7 +33,7 @@ def load_input():
         magnetic_fields_states.append(initial_state == 1)
 
     board = Board(board, width, height, start, target, switches, magnetic_fields)
-    states = States(magnetic_fields_states, balls)
+    states = States(magnetic_fields_states, balls, "")
 
     return board, states
 

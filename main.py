@@ -10,6 +10,6 @@ board.show(state)
 # path, _ = bfs(board.start, board.target, board, state)
 
 # complex solving
-path, _ = bfs_switches(board.start, board.target, board, state, [])
-    
-print(path)
+state = bfs_switches(board.start, board.target, board, state, [])
+if state:
+    print(state.actions)

@@ -1,12 +1,13 @@
 import sys
 
 class States: 
-    def __init__(self, magnetic_fields: list[bool], balls: tuple[int, int]):
+    def __init__(self, magnetic_fields: list[bool], balls: tuple[int, int], actions: str = ""):
         self.magnetic_fields = magnetic_fields
         self.balls = balls
+        self.actions = actions
 
     def clone(self):
-        return States(self.magnetic_fields[:], self.balls[:])
+        return States(self.magnetic_fields[:], self.balls[:], self.actions)
     
 
 class Board:
