@@ -37,7 +37,7 @@ Test 30: 'TIMEOUT' (66.252)
 
 
 
-Commit : ???
+Commit : 1ebc734d2aa51c54202dd4dc80d289e4e069fd94
 
 BFS of BFS:
 
@@ -75,3 +75,42 @@ Test 29: 'TIMEOUT' (25.808)
 Test 30: 'TIMEOUT' (8.985)
 
 6/30 tests passed - Total length: 4649 characters
+
+
+
+Commit : ???
+
+Add caching and simplify the maze
+
+Test 1: 'OK' (0.032)
+Test 2: 'OK' (0.030)
+Test 3: 'OK' (0.030)
+Test 4: 'OK' (0.030)
+Test 5: 'OK' (0.030)
+Test 6: 'TIMEOUT' (3.557)
+Test 7: 'TIMEOUT' (2.946)
+Test 8: 'TIMEOUT' (23.748)
+Test 9: 'TIMEOUT' (20.721)
+Test 10: 'TIMEOUT' (9.587)
+Test 11: 'TIMEOUT' (21.147)
+Test 12: 'TIMEOUT' (8.584)
+Test 13: 'TIMEOUT' (2.470)
+Test 14: 'TIMEOUT' (8.555)
+Test 15: 'TIMEOUT' (4.323)
+Test 16: 'TIMEOUT' (3.044)
+Test 17: 'TIMEOUT' (6.140)
+Test 18: 'TIMEOUT' (47.136)
+Test 19: 'TIMEOUT' (2.995)
+Test 20: 'TIMEOUT' (6.404)
+Test 21: 'TIMEOUT' (12.314)
+Test 22: 'TIMEOUT' (7.071)
+Test 23: 'TIMEOUT' (3.577)
+Test 24: 'OK' (0.888)
+Test 25: 'TIMEOUT' (5.357)
+Test 26: 'TIMEOUT' (1.418)
+Test 27: 'TIMEOUT' (7.212)
+Test 28: 'OK' (0.606)
+Test 29: 'TIMEOUT' (21.034)
+Test 30: 'TIMEOUT' (7.025)
+
+7/30 tests passed - Total length: 4649 characters

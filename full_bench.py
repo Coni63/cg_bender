@@ -21,7 +21,7 @@ for i, test_file in enumerate(test_files):
     if solution_found and not time_limit_exceeded:
         total_win += 1
         total_length += len(output_string)
-        print(f"Test {i+1}: 'OK'")
+        print(f"Test {i+1}: 'OK' ({end_time - start_time:0.3f})")
     elif solution_found and time_limit_exceeded:
         total_length += len(output_string)
         print(f"Test {i+1}: 'TIMEOUT' ({end_time - start_time:0.3f})")

@@ -1,13 +1,14 @@
 import sys
 
 class States: 
-    def __init__(self, magnetic_fields: list[bool], balls: tuple[int, int], actions: str = ""):
+    def __init__(self, magnetic_fields: list[bool], balls: tuple[int, int], steps: list[int], actions: str = ""):
         self.magnetic_fields = magnetic_fields
         self.balls = balls
         self.actions = actions
+        self.steps = steps
 
     def clone(self):
-        return States(self.magnetic_fields[:], self.balls[:], self.actions)
+        return States(self.magnetic_fields[:], self.balls[:], self.steps[:], self.actions)
     
     def __hash__(self) -> int:
         s = 0
@@ -91,3 +92,31 @@ class Board:
                 # toggle the magnetic field
                 state.magnetic_fields[i] = not state.magnetic_fields[i]
 
+    def simplify_board(self):
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+
+        improved = True
+        while improved:
+            improved = False
+            for row in range(1, self.height-1):
+                for col in range(1, self.width-1):
+                    p = (row, col)
+                    if p in self.switches:
+                        continue
+
+                    if p in self.magnetic_fields:
+                        continue
+
+                    if p == self.start or p == self.target:
+                        continue
+
+                    if not self.board[row][col]:
+                        continue
+                    
+                    wall = 0
+                    for drow, dcol in directions:
+                        wall += not self.board[row + drow][col + dcol]
+
+                    if wall >= 3:
+                        self.board[row][col] = False
+                        improved = True

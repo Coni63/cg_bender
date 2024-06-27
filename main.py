@@ -1,17 +1,17 @@
-from bfs import bfs, bfs_switches
+import sys
+import time
+from bfs import bfs_switches
 from loader import load_input
-from board import Board
-
 
 board, state = load_input()
+
+start = time.time()
+board.simplify_board()
 board.show(state)
 
-# simple check
-# path, _ = bfs(board.start, board.target, board, state)
-
-# complex solving
 state = bfs_switches(board.start, board.target, board, state)
 if state:
     print(state.actions)
 else:
-    print("No path found")
+    print("")
+print("Time:", time.time() - start, file=sys.stderr)
