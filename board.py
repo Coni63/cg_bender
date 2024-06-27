@@ -36,6 +36,9 @@ class States:
     
     def __ge__(self, other):
         return len(self.actions) >= len(other.actions)
+    
+    def __repr__(self):
+        return f"States({self.magnetic_fields}, {self.actions})"
 
 
 class Board:
@@ -85,6 +88,11 @@ class Board:
                 return True
         
         return False
+    
+    def get_magnetic_field(self, row: int, col: int) -> int:
+        if (row, col) in self.magnetic_fields:
+            return self.magnetic_fields.index((row, col))
+        return -1
     
     def move_on(self, state: States, row: int, col: int):
         for i, pos in enumerate(self.switches):

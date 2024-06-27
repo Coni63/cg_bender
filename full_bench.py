@@ -1,8 +1,15 @@
+import datetime
 import subprocess
 import time
+from pathlib import Path
 
 
 test_files = [f"tests/{i}.txt" for i in range(1, 31)]
+
+ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+folder = Path(f"results/{ts}")
+folder.mkdir(parents=True, exist_ok=True)
 
 total_length = 0
 total_win = 0
@@ -17,6 +24,9 @@ for i, test_file in enumerate(test_files):
 
     solution_found = len(output_string) > 0
     time_limit_exceeded = end_time - start_time >= 1
+
+    with open(folder / f"{i+1}.txt", 'w') as f:
+        f.write(output_string)
 
     if solution_found and not time_limit_exceeded:
         total_win += 1
