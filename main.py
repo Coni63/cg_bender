@@ -1,6 +1,7 @@
 import sys
 import time
 from bfs import bfs_switches
+from encoder import compress_string
 from loader import load_input
 
 board, state = load_input()
@@ -11,7 +12,8 @@ board.show(state)
 
 state = bfs_switches(board.start, board.target, board, state)
 if state:
-    print(state.actions)
+    compressed_output = compress_string(state.actions, [])
+    print(compressed_output)
 else:
     print("")
 print("Time:", time.time() - start, file=sys.stderr)
