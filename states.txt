@@ -1,0 +1,77 @@
+Commit : e21ab3d937c4721d88ba5c80ded8935e6c80fd1c
+
+DFS of BFS:
+
+Test 1: 'OK'
+Test 2: 'OK'
+Test 3: 'OK'
+Test 4: 'OK'
+Test 5: 'OK'
+Test 6: 'OK'
+Test 7: 'OK'
+Test 8: 'TIMEOUT' (12.557)
+Test 9: 'TIMEOUT' (1.427)
+Test 10: 'TIMEOUT' (1.608)
+Test 11: 'OK'
+Test 12: 'TIMEOUT' (16.765)
+Test 13: 'OK'
+Test 14: 'TIMEOUT' (2.819)
+Test 15: 'OK'
+Test 16: 'TIMEOUT' (7.391)
+Test 17: 'OK'
+Test 18: 'TIMEOUT' (4.188)
+Test 19: 'TIMEOUT' (5.594)
+Test 20: 'OK'
+Test 21: 'OK'
+Test 22: 'TIMEOUT' (5.488)
+Test 23: 'OK'
+Test 24: 'OK'
+Test 25: 'TIMEOUT' (22.504)
+Test 26: 'OK'
+Test 27: 'OK'
+Test 28: 'OK'
+Test 29: 'TIMEOUT' (13.791)
+Test 30: 'TIMEOUT' (66.252)
+
+18/30 tests passed - Total length: 34437 characters
+
+
+
+Commit : ???
+
+BFS of BFS:
+
+Slower but ensure shortest path (or almost due to last sequence that may be longer)
+
+Test 1: 'OK'
+Test 2: 'OK'
+Test 3: 'OK'
+Test 4: 'OK'
+Test 5: 'OK'
+Test 6: 'TIMEOUT' (4.885)
+Test 7: 'TIMEOUT' (3.319)
+Test 8: 'TIMEOUT' (27.788)
+Test 9: 'TIMEOUT' (25.577)
+Test 10: 'TIMEOUT' (10.091)
+Test 11: 'TIMEOUT' (26.492)
+Test 12: 'TIMEOUT' (10.942)
+Test 13: 'TIMEOUT' (3.233)
+Test 14: 'TIMEOUT' (10.981)
+Test 15: 'TIMEOUT' (5.004)
+Test 16: 'TIMEOUT' (4.325)
+Test 17: 'TIMEOUT' (7.008)
+Test 18: 'TIMEOUT' (58.490)
+Test 19: 'TIMEOUT' (3.614)
+Test 20: 'TIMEOUT' (7.956)
+Test 21: 'TIMEOUT' (15.198)
+Test 22: 'TIMEOUT' (8.338)
+Test 23: 'TIMEOUT' (4.408)
+Test 24: 'TIMEOUT' (1.182)
+Test 25: 'TIMEOUT' (6.355)
+Test 26: 'TIMEOUT' (1.780)
+Test 27: 'TIMEOUT' (8.637)
+Test 28: 'OK'
+Test 29: 'TIMEOUT' (25.808)
+Test 30: 'TIMEOUT' (8.985)
+
+6/30 tests passed - Total length: 4649 characters

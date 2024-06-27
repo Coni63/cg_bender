@@ -10,6 +10,8 @@ board.show(state)
 # path, _ = bfs(board.start, board.target, board, state)
 
 # complex solving
-state = bfs_switches(board.start, board.target, board, state, set())
+state = bfs_switches(board.start, board.target, board, state)
 if state:
     print(state.actions)
+else:
+    print("No path found")

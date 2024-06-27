@@ -1,6 +1,7 @@
 import sys
 from board import Board, States
 from collections import deque
+import heapq
 
 r = sys.getrecursionlimit()
 sys.setrecursionlimit(r * 2)
@@ -35,39 +36,36 @@ def bfs(start: tuple[int, int], target: tuple[int, int], board: Board, initial_s
     return None
 
 
-def bfs_switches(start: tuple[int, int], target: tuple[int, int], board: Board, initial_state: States, switched_done: set[int, int, int], depth=0) -> States | None:
-    # check if we can reach the target directly
-    state = bfs(start, target, board, initial_state, avoid_switch=False)
-    if state is not None:
-        return state
+def bfs_switches(start: tuple[int, int], target: tuple[int, int], board: Board, initial_state: States) -> States | None:    
+    queue = []
+    heapq.heappush(queue, (initial_state.fitness(), (start, target, initial_state.clone())))
+
+    visited = set()
+    while queue:
+        s, t, state = heapq.heappop(queue)[1]
+
+        # check if we can reach the target directly
+        next_state = bfs(s, t, board, state, avoid_switch=True)
+        if next_state is not None:
+            return next_state
+
+        for switch in board.switches:
+            # skip the switch we are on
+            if switch == start:
+                continue
+
+            # Avoid loops by checking if we already tried this move with the same initial state
+            hash_state = (*s, *switch, hash(state))
+            if hash_state in visited:
+                continue
+            visited.add(hash_state)
+
+            # Try to reach the switch
+            inter_state = bfs(s, switch, board, state, avoid_switch=True)
+            if inter_state is None:
+                continue
+            
+            # From the switch, try to reach the target from the switch
+            heapq.heappush(queue, (inter_state.fitness(), (switch, target, inter_state)))
     
-    if depth > 50:
-        return None
-    
-    # there is no direct path to the target, we need to test all the switches
-    for i, switch in enumerate(board.switches):
-
-        #skip the switch we are on
-        if switch == start:
-            continue
-
-        # Avoid loops by checking if we already tried this move with the same initial state
-        # hash_state = (*start, *switch, hash(initial_state))
-        hash_state = (*start, *switch, hash(initial_state))
-        if hash_state in switched_done:
-            continue
-        
-        new_switches = switched_done.copy()
-        new_switches.add(hash_state)
-
-        # Try to reach the switch
-        inter_state = bfs(start, switch, board, initial_state, avoid_switch=True)
-        if inter_state is None:
-            continue
-        
-        # From the switch, try to reach the target from the switch
-        ans = bfs_switches(switch, board.target, board, inter_state, new_switches, depth=depth+1)
-        if ans is not None:
-            return ans
-        
     return None

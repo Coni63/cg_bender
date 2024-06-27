@@ -15,6 +15,27 @@ class States:
             s = s * 2 + state
         return s
     
+    def fitness(self) -> int:
+        return len(self.actions)
+    
+    def __lt__(self, other):
+        return len(self.actions) < len(other.actions)
+
+    def __le__(self, other):
+        return len(self.actions) <= len(other.actions)
+    
+    def __eq__(self, other):
+        return self.actions == other.actions
+    
+    def __ne__(self, other):
+        return self.actions != other.actions
+    
+    def __gt__(self, other):
+        return len(self.actions) > len(other.actions)
+    
+    def __ge__(self, other):
+        return len(self.actions) >= len(other.actions)
+
 
 class Board:
     def __init__(self, 
