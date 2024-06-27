@@ -9,6 +9,12 @@ class States:
     def clone(self):
         return States(self.magnetic_fields[:], self.balls[:], self.actions)
     
+    def __hash__(self) -> int:
+        s = 0
+        for state in self.magnetic_fields:
+            s = s * 2 + state
+        return s
+    
 
 class Board:
     def __init__(self, 
