@@ -51,12 +51,23 @@ impl State {
     pub fn get_actions(&self) -> String {
         self.actions.clone()
     }
+
+    pub fn is_garbage_ball(&self, idx: usize) -> bool {
+        for &ball in self.garbage_balls.iter() {
+            if ball == idx {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 pub struct Board {
     board: [Cell; 441],
     start: usize,
     target: usize,
+    all_switches: [usize; 11],
+    all_magnetic_fields: [usize; 11],
 }
 
 impl Board {
@@ -65,27 +76,51 @@ impl Board {
             board: [Cell::Wall; 441],
             start: 0,
             target: 0,
+            all_switches: [0; 11],        // index of the switch
+            all_magnetic_fields: [0; 11], // index of the magnetic field
         }
     }
 
     pub fn set_cell(&mut self, x: usize, y: usize, cell: Cell) {
-        self.board[y * 21 + x] = cell;
+        let pos = y * 21 + x;
+        match cell {
+            Cell::Switch(idx) => self.all_switches[idx] = pos,
+            Cell::MagneticField(idx) => self.all_magnetic_fields[idx] = pos,
+            _ => (),
+        }
+        self.board[pos] = cell;
     }
 
     pub fn get_cell(&self, x: usize, y: usize) -> &Cell {
         &self.board[y * 21 + x]
     }
 
-    pub fn get_cell_idx(&mut self, idx: usize) -> &Cell {
-        &mut self.board[idx]
+    pub fn get_cell_idx(&self, idx: usize) -> &Cell {
+        &self.board[idx]
+    }
+
+    pub fn get_all_switches(&self) -> [usize; 11] {
+        self.all_switches
+    }
+
+    pub fn get_all_magnetic_fields(&self) -> [usize; 11] {
+        self.all_magnetic_fields
     }
 
     pub fn set_start(&mut self, x: usize, y: usize) {
         self.start = y * 21 + x;
     }
 
+    pub fn get_start(&self) -> usize {
+        self.start
+    }
+
     pub fn set_target(&mut self, x: usize, y: usize) {
         self.target = y * 21 + x;
+    }
+
+    pub fn get_target(&self) -> usize {
+        self.target
     }
 
     pub fn show(&self) {
