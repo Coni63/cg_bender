@@ -17,10 +17,15 @@ fn main() {
 
     let step_timer = std::time::Instant::now();
     let actions = match bfs::solve(&board, &state) {
-        Some(result_state) => result_state.get_actions(),
-        None => String::from(""),
+        Some(result_state) => {
+            eprintln!("Finding the solution tooks {:?}", step_timer.elapsed());
+            result_state.get_actions()
+        }
+        None => {
+            eprintln!("No solution found in {:?}", step_timer.elapsed());
+            String::from("")
+        }
     };
-    eprintln!("Finding the solution tooks {:?}", step_timer.elapsed());
 
     let step_timer = std::time::Instant::now();
     let output = encoder::encode_actions(&actions);

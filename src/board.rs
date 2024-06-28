@@ -7,14 +7,16 @@ pub enum Cell {
 }
 
 pub struct State {
+    current_pos: usize,
     garbage_balls: [usize; 10],
     actions: String,
     magnetic_fields: [bool; 11],
 }
 
 impl State {
-    pub fn new() -> State {
+    pub fn new(position: usize) -> State {
         State {
+            current_pos: position,
             garbage_balls: [0; 10], // 0 is always a wall so we can use it as a sentinel
             actions: String::new(),
             magnetic_fields: [false; 11],
@@ -52,6 +54,26 @@ impl State {
         self.actions.clone()
     }
 
+    pub fn get_current_pos(&self) -> usize {
+        self.current_pos
+    }
+
+    pub fn add_actions(&mut self, s: &String) {
+        self.actions += s;
+    }
+
+    pub fn toggle_magnetic_field(&mut self, idx: usize) {
+        self.magnetic_fields[idx] = !self.magnetic_fields[idx];
+    }
+
+    pub fn is_magnetic_field_on(&self, idx: usize) -> bool {
+        self.magnetic_fields[idx]
+    }
+
+    pub fn set_current_pos(&mut self, idx: usize) {
+        self.current_pos = idx;
+    }
+
     pub fn is_garbage_ball(&self, idx: usize) -> bool {
         for &ball in self.garbage_balls.iter() {
             if ball == idx {
@@ -59,6 +81,15 @@ impl State {
             }
         }
         false
+    }
+
+    pub fn clone(&self) -> State {
+        State {
+            current_pos: self.current_pos,
+            garbage_balls: self.garbage_balls,
+            actions: self.actions.clone(),
+            magnetic_fields: self.magnetic_fields,
+        }
     }
 }
 

@@ -9,7 +9,7 @@ macro_rules! parse_input {
 
 pub fn load_inputs() -> (Board, State) {
     let mut board = Board::new();
-    let mut state = State::new();
+    let mut state = State::new(board.get_start());
 
     let mut input_line = String::new();
     io::stdin().read_line(&mut input_line).unwrap();

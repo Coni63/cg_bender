@@ -54,8 +54,8 @@ fn bfs(start: usize, target: usize, board: &Board, state: &State) -> Option<Stri
 // A start is either the start position, a magnetic field or a switch
 // A target is either the target position, a magnetic field or a switch
 // This allows after to have a way faster BFS
-fn prepare(board: &Board, state: &State) -> HashMap<(usize, usize), String> {
-    let mut G: HashMap<(usize, usize), String> = HashMap::new();
+fn prepare(board: &Board, state: &State) -> HashMap<usize, HashMap<usize, String>> {
+    let mut G: HashMap<usize, HashMap<usize, String>> = HashMap::new();
 
     let all_switches = board.get_all_switches();
     let all_magnetic_fields = board.get_all_magnetic_fields();
@@ -78,13 +78,15 @@ fn prepare(board: &Board, state: &State) -> HashMap<(usize, usize), String> {
         .collect();
 
     for s in all_starts.iter() {
+        G.insert(*s, HashMap::new());
+        let mut sub = G.get_mut(s).unwrap();
         for t in all_targets.iter() {
             if s == t {
                 continue;
             }
 
             if let Some(path) = bfs(*s, *t, board, state) {
-                G.insert((*s, *t), path);
+                sub.insert(*t, path);
             }
         }
     }
@@ -92,9 +94,57 @@ fn prepare(board: &Board, state: &State) -> HashMap<(usize, usize), String> {
     G
 }
 
-pub fn solve(board: &Board, initial_state: &State) -> Option<State> {
-    let G = prepare(board, initial_state);
-    // eprintln!("{:?}", G);
+// Using the Graph G, solve the problem
+fn find_path(
+    graph: &HashMap<usize, HashMap<usize, String>>,
+    board: &Board,
+    state: &State,
+) -> Option<State> {
+    let mut queue: Vec<State> = Vec::new();
 
-    Some(State::new())
+    queue.push(state.clone());
+    loop {
+        queue.sort_by_key(|a| a.fitness());
+
+        match queue.pop() {
+            None => return None,
+            Some(current_state) => {
+                if current_state.get_current_pos() == board.get_target() {
+                    return Some(current_state);
+                }
+
+                let targets = graph.get(&current_state.get_current_pos());
+                if targets.is_none() {
+                    continue;
+                }
+
+                for (target, path) in targets.unwrap() {
+                    let mut new_state = current_state.clone();
+                    match board.get_cell_idx(*target) {
+                        Cell::Switch(id) => {
+                            new_state.toggle_magnetic_field(*id);
+                        }
+                        Cell::MagneticField(id) => {
+                            if !current_state.is_magnetic_field_on(*id) {
+                                continue;
+                            }
+                        }
+                        Cell::Empty => (), // This is the case we we reach the target
+                        _ => continue,
+                    }
+
+                    new_state.add_actions(path);
+                    new_state.set_current_pos(*target);
+                    queue.push(new_state);
+                }
+            }
+        }
+    }
+}
+
+pub fn solve(board: &Board, initial_state: &State) -> Option<State> {
+    let graph = prepare(board, initial_state);
+    eprintln!("{:?}", graph);
+
+    find_path(&graph, board, initial_state)
 }
