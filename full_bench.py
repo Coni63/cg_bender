@@ -1,7 +1,20 @@
+import sys
 import datetime
 import subprocess
 import time
 from pathlib import Path
+
+kind = sys.argv[-1]
+
+if kind == "python":
+    cmd = ['python', 'dev_py/main.py']
+elif kind == "rust":
+    cmd = ['../target/debug/cg_bender.exe']
+elif kind == "rust_release":
+    cmd = ['../target/release/cg_bender_cpp.exe']
+else:
+    print("Invalid argument")
+    sys.exit(1)
 
 
 test_files = [f"tests/{i}.txt" for i in range(1, 31)]
@@ -17,7 +30,7 @@ for i, test_file in enumerate(test_files):
     
     start_time = time.time()
 
-    result = subprocess.run(['python', 'main.py'], stdin=open(test_file, 'r'), capture_output=True, text=True)
+    result = subprocess.run(cmd, stdin=open(test_file, 'r'), capture_output=True, text=True)
     output_string = result.stdout.strip()
     
     end_time = time.time()

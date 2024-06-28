@@ -19,6 +19,9 @@ def gain(subset, occurrences, macro_len):
     return len(subset) * (-occurrences + 1) + 1 + macro_len
 
 def compress_string(s: str, macro: list[str]) -> str:
+    if len(macro) == 9:
+        return ";".join([s] + macro)
+    
     substr_count = find_substrings(s)
     
     # Remove substrings that appear only once
