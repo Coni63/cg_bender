@@ -5,7 +5,7 @@ mod loader;
 
 fn main() {
     let (mut board, state) = loader::load_inputs();
-    board.show();
+    // board.show();
 
     let timer = std::time::Instant::now();
 
@@ -13,13 +13,12 @@ fn main() {
     board.simplify();
     eprintln!("Simplify the board tooks {:?}", step_timer.elapsed());
 
-    board.show();
+    // board.show();
 
     let step_timer = std::time::Instant::now();
-    let actions = if let Some(result_state) = bfs::solve(&board, &state) {
-        result_state.get_actions()
-    } else {
-        String::from("")
+    let actions = match bfs::solve(&board, &state) {
+        Some(result_state) => result_state.get_actions(),
+        None => String::from(""),
     };
     eprintln!("Finding the solution tooks {:?}", step_timer.elapsed());
 
@@ -29,5 +28,5 @@ fn main() {
 
     eprintln!("Total Time: {:?}", timer.elapsed());
 
-    print!("{}", output)
+    println!("{}", output)
 }

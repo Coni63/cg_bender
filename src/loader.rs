@@ -21,9 +21,7 @@ pub fn load_inputs() -> (Board, State) {
     for row in 0..height as usize {
         input_line.clear();
         io::stdin().read_line(&mut input_line).unwrap();
-        eprintln!("{}", input_line);
         for (col, letter) in input_line.trim_matches('\n').chars().enumerate() {
-            eprintln!("{}", letter);
             match letter {
                 '#' => board.set_cell(col, row, Cell::Wall),
                 '.' => board.set_cell(col, row, Cell::Empty),

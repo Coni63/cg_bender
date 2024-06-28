@@ -92,10 +92,10 @@ impl Board {
         for y in 0..21 {
             for x in 0..21 {
                 match self.get_cell(x, y) {
-                    Cell::Wall => print!("#"),
-                    Cell::Switch(_) => print!("S"),
-                    Cell::MagneticField(_) => print!("M"),
-                    Cell::Empty => print!("."),
+                    Cell::Wall => eprint!("#"),
+                    Cell::Switch(_) => eprint!("S"),
+                    Cell::MagneticField(_) => eprint!("M"),
+                    Cell::Empty => eprint!("."),
                 }
             }
             eprintln!();
