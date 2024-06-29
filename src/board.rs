@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Cell {
     Wall,
@@ -23,11 +25,11 @@ impl State {
         }
     }
 
-    pub fn fitness(&self) -> i32 {
-        self.actions.len() as i32
+    pub fn fitness(&self) -> usize {
+        100000 - self.actions.len()
     }
 
-    pub fn hash(&self) -> u64 {
+    pub fn hash(&self) -> usize {
         let mut result = 0;
         for (i, &val) in self.magnetic_fields.iter().rev().enumerate() {
             if val {
@@ -90,6 +92,28 @@ impl State {
             actions: self.actions.clone(),
             magnetic_fields: self.magnetic_fields,
         }
+    }
+}
+
+impl Ord for State {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.fitness().cmp(&other.fitness())
+    }
+}
+
+impl PartialOrd for State {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for State {}
+
+impl PartialEq for State {
+    fn eq(&self, other: &Self) -> bool {
+        self.fitness() == other.fitness()
+            && self.hash() == other.hash()
+            && self.current_pos == other.current_pos
     }
 }
 

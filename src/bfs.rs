@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 
 use crate::board::{Board, Cell, State};
 
@@ -100,32 +100,68 @@ fn find_path(
     board: &Board,
     state: &State,
 ) -> Option<State> {
-    let mut queue: Vec<State> = Vec::new();
+    let mut queue: BinaryHeap<State> = BinaryHeap::new();
+
+    let mut visited: HashSet<usize> = HashSet::new();
 
     queue.push(state.clone());
+    let mut turns = 0;
     loop {
-        queue.sort_by_key(|a| a.fitness());
+        // queue.sort_by_cached_key(|a| a.fitness());
+        // eprintln!("Queue: {:?}", queue.len());
+        // if queue.len() > 100000 {
+        //     // eprintln!("Queue: {:?}", queue.len());
+        //     return None;
+        // }
 
+        // let tmp = queue.iter().map(|x| x.fitness()).collect::<Vec<usize>>();
+        // eprintln!("Fitness: {:?}", tmp);
         match queue.pop() {
             None => return None,
             Some(current_state) => {
+                // turns += 1;
+                // if turns == 100 {
+                //     return None;
+                // }
+                // eprintln!(
+                //     "Current: {:?} - Actions {:?}",
+                //     current_state.get_current_pos(),
+                //     current_state.get_actions()
+                // );
+                eprintln!("{}", current_state.get_actions());
                 if current_state.get_current_pos() == board.get_target() {
+                    // eprintln!("Found the target");
                     return Some(current_state);
+                }
+
+                if current_state.get_actions().len() > 1000 {
+                    // eprintln!("Too long path, skipping it");
+                    continue;
                 }
 
                 let targets = graph.get(&current_state.get_current_pos());
                 if targets.is_none() {
+                    // eprintln!("No target found for {}", current_state.get_current_pos());
                     continue;
                 }
 
+                let signature = (current_state.hash() << 9) + (current_state.get_current_pos());
+                if visited.contains(&signature) {
+                    // eprintln!("Already visited: {}", signature);
+                    continue;
+                }
+                visited.insert(signature);
+
                 for (target, path) in targets.unwrap() {
+                    // eprintln!("checking target: {} - ", target);
                     let mut new_state = current_state.clone();
                     match board.get_cell_idx(*target) {
                         Cell::Switch(id) => {
                             new_state.toggle_magnetic_field(*id);
                         }
                         Cell::MagneticField(id) => {
-                            if !current_state.is_magnetic_field_on(*id) {
+                            if current_state.is_magnetic_field_on(*id) {
+                                // eprintln!("Magnetic field {} is on: {} -- Skipping", id, target);
                                 continue;
                             }
                         }
@@ -133,6 +169,7 @@ fn find_path(
                         _ => continue,
                     }
 
+                    // eprintln!("Adding action: {}", target);
                     new_state.add_actions(path);
                     new_state.set_current_pos(*target);
                     queue.push(new_state);
@@ -143,8 +180,14 @@ fn find_path(
 }
 
 pub fn solve(board: &Board, initial_state: &State) -> Option<State> {
+    // eprintln!(
+    //     "Solving the board ({} -> {})",
+    //     board.get_start(),
+    //     board.get_target()
+    // );
+
     let graph = prepare(board, initial_state);
-    eprintln!("{:?}", graph);
+    // eprintln!("{:?}", graph);
 
     find_path(&graph, board, initial_state)
 }

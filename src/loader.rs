@@ -9,7 +9,7 @@ macro_rules! parse_input {
 
 pub fn load_inputs() -> (Board, State) {
     let mut board = Board::new();
-    let mut state = State::new(board.get_start());
+    let mut state = State::new(0);
 
     let mut input_line = String::new();
     io::stdin().read_line(&mut input_line).unwrap();
@@ -68,6 +68,8 @@ pub fn load_inputs() -> (Board, State) {
         board.set_cell(block_x, block_y, Cell::MagneticField(i));
         state.set_magnetic_field(i, initial_state == 1);
     }
+
+    state.set_current_pos(board.get_start());
 
     (board, state)
 }
