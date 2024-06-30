@@ -26,7 +26,7 @@ impl State {
     }
 
     pub fn fitness(&self) -> usize {
-        100000 - self.actions.len()
+        self.actions.len()
     }
 
     pub fn hash(&self) -> usize {
@@ -97,7 +97,7 @@ impl State {
 
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.fitness().cmp(&other.fitness())
+        (other.fitness()).cmp(&self.fitness())
     }
 }
 

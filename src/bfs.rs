@@ -99,13 +99,17 @@ fn find_path(
     graph: &HashMap<usize, HashMap<usize, String>>,
     board: &Board,
     state: &State,
-) -> Option<State> {
+) -> Vec<State> {
+    let mut ans: Vec<State> = Vec::new();
+
     let mut queue: BinaryHeap<State> = BinaryHeap::new();
 
     let mut visited: HashSet<usize> = HashSet::new();
 
     queue.push(state.clone());
-    let mut turns = 0;
+
+    let mut start_time = std::time::Instant::now();
+
     loop {
         // queue.sort_by_cached_key(|a| a.fitness());
         // eprintln!("Queue: {:?}", queue.len());
@@ -117,7 +121,7 @@ fn find_path(
         // let tmp = queue.iter().map(|x| x.fitness()).collect::<Vec<usize>>();
         // eprintln!("Fitness: {:?}", tmp);
         match queue.pop() {
-            None => return None,
+            None => return ans,
             Some(current_state) => {
                 // turns += 1;
                 // if turns == 100 {
@@ -128,10 +132,15 @@ fn find_path(
                 //     current_state.get_current_pos(),
                 //     current_state.get_actions()
                 // );
-                eprintln!("{}", current_state.get_actions());
+                // eprintln!("{}", current_state.get_actions());
                 if current_state.get_current_pos() == board.get_target() {
                     // eprintln!("Found the target");
-                    return Some(current_state);
+                    // return Some(current_state);
+                    ans.push(current_state.clone());
+
+                    if (ans.len() == 100) | (start_time.elapsed().as_millis() > 900) {
+                        return ans;
+                    }
                 }
 
                 if current_state.get_actions().len() > 1000 {
@@ -179,7 +188,7 @@ fn find_path(
     }
 }
 
-pub fn solve(board: &Board, initial_state: &State) -> Option<State> {
+pub fn solve(board: &Board, initial_state: &State) -> Vec<State> {
     // eprintln!(
     //     "Solving the board ({} -> {})",
     //     board.get_start(),

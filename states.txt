@@ -155,7 +155,7 @@ Test 30: 'TIMEOUT' (6.863)
 
 
 
-Commit : ???
+Commit : 378ac1a6520e5d52a8b43a654240422acdc1cbec
 
 Convert to Rust with improved data structure and graph approach
 
@@ -191,3 +191,41 @@ Test 29: 'OK' (0.682) - 90 characters
 Test 30: 'OK' (0.073) - 98 characters
 
 30/30 tests passed - Total length: 2443 characters
+
+
+Commit : ???
+
+Return 100 path or check solutions until 900 ms to take the sortest encoded
+
+Test 1: 'OK' (0.044) - 12 characters
+Test 2: 'OK' (0.009) - 7 characters
+Test 3: 'OK' (0.010) - 15 characters
+Test 4: 'OK' (0.010) - 20 characters
+Test 5: 'OK' (0.009) - 14 characters
+Test 6: 'OK' (0.076) - 93 characters
+Test 7: 'OK' (0.102) - 102 characters
+Test 8: 'OK' (0.107) - 92 characters
+Test 9: 'OK' (0.137) - 98 characters
+Test 10: 'OK' (0.091) - 80 characters
+Test 11: 'OK' (0.121) - 94 characters
+Test 12: 'OK' (0.105) - 89 characters
+Test 13: 'OK' (0.087) - 95 characters
+Test 14: 'OK' (0.119) - 97 characters
+Test 15: 'OK' (0.099) - 92 characters
+Test 16: 'OK' (0.087) - 103 characters
+Test 17: 'OK' (0.092) - 83 characters
+Test 18: 'OK' (0.120) - 91 characters
+Test 19: 'OK' (0.104) - 94 characters
+Test 20: 'OK' (0.096) - 91 characters
+Test 21: 'OK' (0.114) - 105 characters
+Test 22: 'OK' (0.103) - 105 characters
+Test 23: 'OK' (0.080) - 91 characters
+Test 24: 'OK' (0.066) - 92 characters
+Test 25: 'OK' (0.107) - 94 characters
+Test 26: 'OK' (0.089) - 88 characters
+Test 27: 'OK' (0.088) - 91 characters
+Test 28: 'OK' (0.089) - 101 characters
+Test 29: 'OK' (0.149) - 90 characters
+Test 30: 'OK' (0.076) - 98 characters
+
+30/30 tests passed - Total length: 2417 characters
