@@ -8,16 +8,18 @@ use encoder::encode_actions;
 use loader::load_inputs;
 
 fn main() {
-    let (mut board, state) = load_inputs();
+    let (mut board, mut state) = load_inputs();
     // board.show();
 
     let timer = std::time::Instant::now();
 
+    // board.show(&state);
+
     let step_timer = std::time::Instant::now();
-    board.simplify();
+    board.simplify(&mut state);
     eprintln!("Simplify the board tooks {:?}", step_timer.elapsed());
 
-    // board.show();
+    // board.show(&state);
 
     let step_timer = std::time::Instant::now();
     let states = solve(&board, &state);

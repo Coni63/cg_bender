@@ -77,6 +77,10 @@ impl State {
     }
 
     pub fn is_garbage_ball(&self, idx: usize) -> bool {
+        if idx == 0 {
+            return false;
+        }
+
         for &ball in self.garbage_balls.iter() {
             if ball == idx {
                 return true;
@@ -178,21 +182,26 @@ impl Board {
         self.target
     }
 
-    pub fn show(&self) {
+    pub fn show(&self, state: &State) {
         for y in 0..21 {
             for x in 0..21 {
-                match self.get_cell(x, y) {
-                    Cell::Wall => eprint!("#"),
-                    Cell::Switch(_) => eprint!("S"),
-                    Cell::MagneticField(_) => eprint!("M"),
-                    Cell::Empty => eprint!("."),
+                let idx = y * 21 + x;
+                if state.is_garbage_ball(idx) {
+                    eprint!("+");
+                } else {
+                    match self.get_cell(x, y) {
+                        Cell::Wall => eprint!("#"),
+                        Cell::Switch(_) => eprint!("S"),
+                        Cell::MagneticField(_) => eprint!("M"),
+                        Cell::Empty => eprint!("."),
+                    }
                 }
             }
             eprintln!();
         }
     }
 
-    pub fn simplify(&mut self) {
+    pub fn simplify_deadend(&mut self) {
         let offset = [-1, 1, -21, 21];
 
         let mut improved = true;
@@ -221,5 +230,35 @@ impl Board {
                 }
             }
         }
+    }
+
+    pub fn simplify_balls(&mut self, state: &mut State) {
+        let mut idx_to_change = vec![];
+        let corners = [(-1, -21), (1, -21), (-1, 21), (1, 21)];
+        for (i, &ball) in state.garbage_balls.iter().enumerate() {
+            if ball == 0 {
+                continue;
+            }
+
+            for (corner1, corner2) in corners.iter() {
+                let idx1 = (ball as i32 + corner1) as usize;
+                let idx2 = (ball as i32 + corner2) as usize;
+                if (self.board[idx1] == Cell::Wall) && (self.board[idx2] == Cell::Wall) {
+                    eprintln!("Removing ball {}", ball);
+                    self.board[ball] = Cell::Wall;
+                    idx_to_change.push(i);
+                    break;
+                }
+            }
+        }
+
+        for &idx in idx_to_change.iter() {
+            state.garbage_balls[idx] = 0;
+        }
+    }
+
+    pub fn simplify(&mut self, state: &mut State) {
+        self.simplify_balls(state);
+        self.simplify_deadend();
     }
 }
