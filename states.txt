@@ -232,7 +232,7 @@ Test 30: 'OK' (0.076) - 98 characters
 
 
 
-Commit :  ???
+Commit :  da878acfedd18ccef35edfaf88da5c03e957205a
 
 Slight perf improvement while preparing the new solver
 
@@ -268,3 +268,42 @@ Test 29: 'OK' (0.120) - 90 characters
 Test 30: 'OK' (0.073) - 98 characters
 
 30/30 tests passed - Total length: 2399 characters
+
+
+
+Commit :  ???
+
+New BFS used ready to test garbage balls
+
+Test 1: 'OK' (0.034) - 14 characters
+Test 2: 'OK' (0.006) - 7 characters
+Test 3: 'OK' (0.005) - 15 characters
+Test 4: 'OK' (0.006) - 20 characters
+Test 5: 'OK' (0.006) - 13 characters
+Test 6: 'OK' (0.034) - 94 characters
+Test 7: 'OK' (0.070) - 101 characters
+Test 8: 'OK' (0.115) - 93 characters
+Test 9: 'OK' (0.141) - 97 characters
+Test 10: 'OK' (0.049) - 83 characters
+Test 11: 'OK' (0.124) - 97 characters
+Test 12: 'OK' (0.094) - 89 characters
+Test 13: 'OK' (0.033) - 95 characters
+Test 14: 'OK' (0.185) - 100 characters
+Test 15: 'OK' (0.025) - 93 characters
+Test 16: 'OK' (0.027) - 100 characters
+Test 17: 'OK' (0.059) - 90 characters
+Test 18: 'OK' (0.214) - 95 characters
+Test 19: 'OK' (0.038) - 94 characters
+Test 20: 'OK' (0.043) - 94 characters
+Test 21: 'OK' (0.059) - 105 characters
+Test 22: 'OK' (0.056) - 104 characters
+Test 23: 'OK' (0.031) - 94 characters
+Test 24: 'OK' (0.029) - 92 characters
+Test 25: 'OK' (0.045) - 91 characters
+Test 26: 'OK' (0.064) - 91 characters
+Test 27: 'OK' (0.134) - 92 characters
+Test 28: 'OK' (0.012) - 96 characters
+Test 29: 'OK' (0.245) - 91 characters
+Test 30: 'OK' (0.041) - 98 characters
+
+30/30 tests passed - Total length: 2438 characters

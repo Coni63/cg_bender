@@ -22,23 +22,23 @@ fn main() {
     // board.show(&state);
 
     let step_timer = std::time::Instant::now();
-    let states = solve(&board, &state);
-    eprintln!("Finding the solution tooks {:?}", step_timer.elapsed());
+
+    let actions = match solve(&board, &state) {
+        Some(state) => {
+            eprintln!("Finding the solution tooks {:?} ", step_timer.elapsed());
+            state.get_actions().clone()
+        }
+        None => {
+            eprintln!("No solution found");
+            String::new()
+        }
+    };
 
     let step_timer = std::time::Instant::now();
-    let mut shortest_path = String::new();
-    let mut min_dist = 1000;
-    for state in states.iter() {
-        let actions = state.get_actions();
-        let encoded = encode_actions(actions);
-        if encoded.len() < min_dist {
-            min_dist = encoded.len();
-            shortest_path = encoded;
-        }
-    }
+    let encoded = encode_actions(&actions);
     eprintln!("Encoding the solution tooks {:?}", step_timer.elapsed());
 
     eprintln!("Total Time: {:?}", timer.elapsed());
 
-    println!("{}", shortest_path)
+    println!("{}", encoded)
 }

@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::fmt::{Debug, Formatter, Result};
 use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -26,10 +26,6 @@ impl State {
         }
     }
 
-    pub fn fitness(&self) -> usize {
-        self.actions.len()
-    }
-
     pub fn toggle_magnetic_field(&mut self, idx: usize) {
         self.magnetic_fields ^= 1 << idx;
     }
@@ -42,8 +38,8 @@ impl State {
         &self.actions
     }
 
-    pub fn add_actions(&mut self, s: &String) {
-        self.actions += s;
+    pub fn add_actions(&mut self, s: &char) {
+        self.actions.push(*s);
     }
 
     pub fn get_current_pos(&self) -> usize {
@@ -66,19 +62,29 @@ impl State {
         self.garbage_balls.push(idx);
     }
 
-    pub fn remove_garbage_ball(&mut self, idx: usize) {
-        if let Some(pos) = self.garbage_balls.iter().position(|&x| x == idx) {
-            self.garbage_balls.remove(pos);
-        }
+    pub fn remove_garbage_ball_by_idx(&mut self, idx: usize) {
+        self.garbage_balls.remove(idx);
     }
+}
 
-    pub fn clone(&self) -> State {
+impl Clone for State {
+    fn clone(&self) -> State {
         State {
             current_pos: self.current_pos,
             garbage_balls: self.garbage_balls.clone(),
             actions: self.actions.clone(),
             magnetic_fields: self.magnetic_fields,
         }
+    }
+}
+
+impl Debug for State {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(
+            f,
+            "State {{ current_pos: {}, garbage_balls: {:?}, magnetic_fields: {}, actions: {} }}",
+            self.current_pos, self.garbage_balls, self.magnetic_fields, self.actions
+        )
     }
 }
 
@@ -98,25 +104,13 @@ impl Hash for State {
     }
 }
 
-impl Ord for State {
-    fn cmp(&self, other: &Self) -> Ordering {
-        (other.fitness()).cmp(&self.fitness())
-    }
-}
-
-impl PartialOrd for State {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 impl Eq for State {}
 
 impl PartialEq for State {
     fn eq(&self, other: &Self) -> bool {
-        self.fitness() == other.fitness()
-            && self.magnetic_fields == other.magnetic_fields
+        self.magnetic_fields == other.magnetic_fields
             && self.current_pos == other.current_pos
+            && self.garbage_balls == other.garbage_balls
     }
 }
 
@@ -153,14 +147,6 @@ impl Board {
         &self.board[idx]
     }
 
-    pub fn get_all_switches(&self) -> [usize; 11] {
-        self.all_switches
-    }
-
-    pub fn get_all_magnetic_fields(&self) -> [usize; 11] {
-        self.all_magnetic_fields
-    }
-
     pub fn set_start(&mut self, x: usize, y: usize) {
         self.start = y * 21 + x;
     }
@@ -177,6 +163,7 @@ impl Board {
         self.target
     }
 
+    #[allow(dead_code)]
     pub fn show(&self, state: &State) {
         for y in 0..21 {
             for x in 0..21 {
@@ -242,8 +229,8 @@ impl Board {
             }
         }
 
-        for &idx in idx_to_change.iter() {
-            state.remove_garbage_ball(idx);
+        for &idx in idx_to_change.iter().rev() {
+            state.remove_garbage_ball_by_idx(idx);
         }
     }
 
