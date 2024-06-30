@@ -66,7 +66,9 @@ pub fn load_inputs() -> (Board, State) {
 
         board.set_cell(switch_x, switch_y, Cell::Switch(i));
         board.set_cell(block_x, block_y, Cell::MagneticField(i));
-        state.set_magnetic_field(i, initial_state == 1);
+        if initial_state == 1 {
+            state.toggle_magnetic_field(i);
+        }
     }
 
     state.set_current_pos(board.get_start());

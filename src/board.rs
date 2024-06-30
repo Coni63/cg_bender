@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Cell {
@@ -10,18 +11,18 @@ pub enum Cell {
 
 pub struct State {
     current_pos: usize,
-    garbage_balls: [usize; 10],
+    garbage_balls: Vec<usize>,
     actions: String,
-    magnetic_fields: [bool; 11],
+    magnetic_fields: u16,
 }
 
 impl State {
     pub fn new(position: usize) -> State {
         State {
             current_pos: position,
-            garbage_balls: [0; 10], // 0 is always a wall so we can use it as a sentinel
+            garbage_balls: Vec::new(),
             actions: String::new(),
-            magnetic_fields: [false; 11],
+            magnetic_fields: 0,
         }
     }
 
@@ -29,73 +30,71 @@ impl State {
         self.actions.len()
     }
 
-    pub fn hash(&self) -> usize {
-        let mut result = 0;
-        for (i, &val) in self.magnetic_fields.iter().rev().enumerate() {
-            if val {
-                result |= 1 << i;
-            }
-        }
-        result
+    pub fn toggle_magnetic_field(&mut self, idx: usize) {
+        self.magnetic_fields ^= 1 << idx;
     }
 
-    pub fn add_garbage_ball(&mut self, idx: usize) {
-        for i in 0..10 {
-            if self.garbage_balls[i] == 0 {
-                self.garbage_balls[i] = idx;
-                return;
-            }
-        }
+    pub fn is_magnetic_field_on(&self, idx: usize) -> bool {
+        self.magnetic_fields & (1 << idx) != 0
     }
 
-    pub fn set_magnetic_field(&mut self, idx: usize, val: bool) {
-        self.magnetic_fields[idx] = val;
-    }
-
-    pub fn get_actions(&self) -> String {
-        self.actions.clone()
-    }
-
-    pub fn get_current_pos(&self) -> usize {
-        self.current_pos
+    pub fn get_actions(&self) -> &String {
+        &self.actions
     }
 
     pub fn add_actions(&mut self, s: &String) {
         self.actions += s;
     }
 
-    pub fn toggle_magnetic_field(&mut self, idx: usize) {
-        self.magnetic_fields[idx] = !self.magnetic_fields[idx];
-    }
-
-    pub fn is_magnetic_field_on(&self, idx: usize) -> bool {
-        self.magnetic_fields[idx]
+    pub fn get_current_pos(&self) -> usize {
+        self.current_pos
     }
 
     pub fn set_current_pos(&mut self, idx: usize) {
         self.current_pos = idx;
     }
 
-    pub fn is_garbage_ball(&self, idx: usize) -> bool {
-        if idx == 0 {
-            return false;
-        }
+    pub fn get_garbage_balls(&self) -> &Vec<usize> {
+        &self.garbage_balls
+    }
 
-        for &ball in self.garbage_balls.iter() {
-            if ball == idx {
-                return true;
-            }
+    pub fn is_garbage_ball(&self, idx: usize) -> bool {
+        self.garbage_balls.contains(&idx)
+    }
+
+    pub fn add_garbage_ball(&mut self, idx: usize) {
+        self.garbage_balls.push(idx);
+    }
+
+    pub fn remove_garbage_ball(&mut self, idx: usize) {
+        if let Some(pos) = self.garbage_balls.iter().position(|&x| x == idx) {
+            self.garbage_balls.remove(pos);
         }
-        false
     }
 
     pub fn clone(&self) -> State {
         State {
             current_pos: self.current_pos,
-            garbage_balls: self.garbage_balls,
+            garbage_balls: self.garbage_balls.clone(),
             actions: self.actions.clone(),
             magnetic_fields: self.magnetic_fields,
         }
+    }
+}
+
+impl Hash for State {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Hash each field in the struct
+        self.current_pos.hash(state);
+        for ball in &self.garbage_balls {
+            ball.hash(state);
+        }
+        self.magnetic_fields.hash(state);
+
+        // eprintln!(
+        //     "{} {:?} {}",
+        //     self.current_pos, self.garbage_balls, self.magnetic_fields
+        // );
     }
 }
 
@@ -116,7 +115,7 @@ impl Eq for State {}
 impl PartialEq for State {
     fn eq(&self, other: &Self) -> bool {
         self.fitness() == other.fitness()
-            && self.hash() == other.hash()
+            && self.magnetic_fields == other.magnetic_fields
             && self.current_pos == other.current_pos
     }
 }
@@ -150,11 +149,7 @@ impl Board {
         self.board[pos] = cell;
     }
 
-    pub fn get_cell(&self, x: usize, y: usize) -> &Cell {
-        &self.board[y * 21 + x]
-    }
-
-    pub fn get_cell_idx(&self, idx: usize) -> &Cell {
+    pub fn get_cell(&self, idx: usize) -> &Cell {
         &self.board[idx]
     }
 
@@ -189,7 +184,7 @@ impl Board {
                 if state.is_garbage_ball(idx) {
                     eprint!("+");
                 } else {
-                    match self.get_cell(x, y) {
+                    match self.get_cell(idx) {
                         Cell::Wall => eprint!("#"),
                         Cell::Switch(_) => eprint!("S"),
                         Cell::MagneticField(_) => eprint!("M"),
@@ -201,7 +196,7 @@ impl Board {
         }
     }
 
-    pub fn simplify_deadend(&mut self) {
+    fn simplify_deadend(&mut self) {
         let offset = [-1, 1, -21, 21];
 
         let mut improved = true;
@@ -232,19 +227,14 @@ impl Board {
         }
     }
 
-    pub fn simplify_balls(&mut self, state: &mut State) {
+    fn simplify_balls(&mut self, state: &mut State) {
         let mut idx_to_change = vec![];
         let corners = [(-1, -21), (1, -21), (-1, 21), (1, 21)];
-        for (i, &ball) in state.garbage_balls.iter().enumerate() {
-            if ball == 0 {
-                continue;
-            }
-
+        for (i, &ball) in state.get_garbage_balls().iter().enumerate() {
             for (corner1, corner2) in corners.iter() {
                 let idx1 = (ball as i32 + corner1) as usize;
                 let idx2 = (ball as i32 + corner2) as usize;
                 if (self.board[idx1] == Cell::Wall) && (self.board[idx2] == Cell::Wall) {
-                    eprintln!("Removing ball {}", ball);
                     self.board[ball] = Cell::Wall;
                     idx_to_change.push(i);
                     break;
@@ -253,7 +243,7 @@ impl Board {
         }
 
         for &idx in idx_to_change.iter() {
-            state.garbage_balls[idx] = 0;
+            state.remove_garbage_ball(idx);
         }
     }
 

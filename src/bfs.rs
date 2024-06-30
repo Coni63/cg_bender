@@ -1,4 +1,7 @@
-use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
+use std::{
+    collections::{BinaryHeap, HashMap, HashSet, VecDeque},
+    hash::{DefaultHasher, Hash, Hasher},
+};
 
 use crate::board::{Board, Cell, State};
 
@@ -21,7 +24,7 @@ fn bfs(start: usize, target: usize, board: &Board, state: &State) -> Option<Stri
                 }
 
                 // disregaard switch and magnetic field
-                if (current != start) & (board.get_cell_idx(current) != &Cell::Empty) {
+                if (current != start) & (board.get_cell(current) != &Cell::Empty) {
                     // eprintln!("Found a wall: {}", current);
                     continue;
                 }
@@ -104,7 +107,7 @@ fn find_path(
 
     let mut queue: BinaryHeap<State> = BinaryHeap::new();
 
-    let mut visited: HashSet<usize> = HashSet::new();
+    let mut visited: HashSet<u64> = HashSet::new();
 
     queue.push(state.clone());
 
@@ -154,7 +157,9 @@ fn find_path(
                     continue;
                 }
 
-                let signature = (current_state.hash() << 9) + (current_state.get_current_pos());
+                let mut hasher = DefaultHasher::new();
+                current_state.hash(&mut hasher);
+                let signature = hasher.finish();
                 if visited.contains(&signature) {
                     // eprintln!("Already visited: {}", signature);
                     continue;
@@ -164,7 +169,7 @@ fn find_path(
                 for (target, path) in targets.unwrap() {
                     // eprintln!("checking target: {} - ", target);
                     let mut new_state = current_state.clone();
-                    match board.get_cell_idx(*target) {
+                    match board.get_cell(*target) {
                         Cell::Switch(id) => {
                             new_state.toggle_magnetic_field(*id);
                         }

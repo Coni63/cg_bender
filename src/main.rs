@@ -30,7 +30,7 @@ fn main() {
     let mut min_dist = 1000;
     for state in states.iter() {
         let actions = state.get_actions();
-        let encoded = encode_actions(&actions);
+        let encoded = encode_actions(actions);
         if encoded.len() < min_dist {
             min_dist = encoded.len();
             shortest_path = encoded;
