@@ -2,7 +2,6 @@ use std::collections::{HashSet, VecDeque};
 
 use crate::board::{Board, Cell, State};
 
-// Using the Graph G, solve the problem
 pub fn solve(board: &Board, initial_state: &State) -> Option<State> {
     let offset: [(i32, char); 4] = [(-1, 'L'), (1, 'R'), (-21, 'U'), (21, 'D')];
 
@@ -11,7 +10,8 @@ pub fn solve(board: &Board, initial_state: &State) -> Option<State> {
 
     queue.push_back(initial_state.clone());
 
-    loop {
+    let mut start_time = std::time::Instant::now();
+    while start_time.elapsed().as_millis() < 900 {
         // eprintln!("Queue: {:?}", queue.len());
         // if queue.len() > 30 {
         //     return None;
@@ -61,7 +61,16 @@ pub fn solve(board: &Board, initial_state: &State) -> Option<State> {
                         }
                         Cell::Empty => {
                             if current_state.is_garbage_ball(new_idx) {
-                                continue; // Skip the garbage ball
+                                match current_state.try_push(board, new_idx) {
+                                    None => continue,
+                                    Some(mut new_state) => {
+                                        // eprintln!("Before: {:?}", current_state);
+                                        new_state.add_actions(direction);
+                                        new_state.set_current_pos(new_idx);
+                                        // eprintln!("After: {:?}", new_state);
+                                        queue.push_back(new_state);
+                                    }
+                                }
                             } else {
                                 let mut new_state = current_state.clone();
                                 new_state.add_actions(direction);
@@ -75,4 +84,5 @@ pub fn solve(board: &Board, initial_state: &State) -> Option<State> {
             }
         }
     }
+    None
 }

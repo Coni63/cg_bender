@@ -65,6 +65,45 @@ impl State {
     pub fn remove_garbage_ball_by_idx(&mut self, idx: usize) {
         self.garbage_balls.remove(idx);
     }
+
+    pub fn move_ball(&mut self, from_idx: usize, to_idx: usize) {
+        for (i, &ball) in self.garbage_balls.iter().enumerate() {
+            if ball == from_idx {
+                self.garbage_balls[i] = to_idx;
+                break;
+            }
+        }
+    }
+
+    pub fn try_push(&self, board: &Board, garbage_ball_position: usize) -> Option<State> {
+        let target_ball = garbage_ball_position * 2 - self.current_pos; // ball + (ball - me)
+
+        // cannot push the ball to the target
+        if target_ball == board.get_target() {
+            return None;
+        }
+
+        // cannot push the ball to another garbage ball
+        if self.is_garbage_ball(target_ball) {
+            return None;
+        }
+
+        match board.get_cell(target_ball) {
+            Cell::Wall => None,
+            Cell::MagneticField(_) => None,
+            Cell::Empty => {
+                let mut new_state = self.clone();
+                new_state.move_ball(garbage_ball_position, target_ball);
+                Some(new_state)
+            }
+            Cell::Switch(id) => {
+                let mut new_state = self.clone();
+                new_state.move_ball(garbage_ball_position, target_ball);
+                new_state.toggle_magnetic_field(*id);
+                Some(new_state)
+            }
+        }
+    }
 }
 
 impl Clone for State {
@@ -108,8 +147,8 @@ impl Eq for State {}
 
 impl PartialEq for State {
     fn eq(&self, other: &Self) -> bool {
-        self.magnetic_fields == other.magnetic_fields
-            && self.current_pos == other.current_pos
+        self.current_pos == other.current_pos
+            && self.magnetic_fields == other.magnetic_fields
             && self.garbage_balls == other.garbage_balls
     }
 }
@@ -237,5 +276,18 @@ impl Board {
     pub fn simplify(&mut self, state: &mut State) {
         self.simplify_balls(state);
         self.simplify_deadend();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_vec() {
+        let v1 = vec![1, 2, 3];
+        let v2 = vec![1, 3, 2];
+
+        assert!(v1 == v2);
     }
 }
