@@ -9,13 +9,16 @@ pub fn solve(board: &Board, initial_state: &State) -> Option<State> {
     let mut visited: HashSet<State> = HashSet::new();
 
     queue.push_back(initial_state.clone());
-
+    let mut count = 0;
     let start_time = std::time::Instant::now();
-    while start_time.elapsed().as_millis() < 2500 {
+    // while start_time.elapsed().as_millis() < 25000 {
+    loop {
         match queue.pop_front() {
             None => return None,
             Some(current_state) => {
+                count += 1;
                 if current_state.get_current_pos() == board.get_target() {
+                    eprintln!("count: {}", count);
                     return Some(current_state.clone());
                 }
 

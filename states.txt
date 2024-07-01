@@ -271,7 +271,7 @@ Test 30: 'OK' (0.073) - 98 characters
 
 
 
-Commit :  ???
+Commit :  322cffc170114b9a9f17472ee4229e9d71a032dc
 
 New BFS used ready to test garbage balls
 
@@ -307,3 +307,41 @@ Test 29: 'OK' (0.245) - 91 characters
 Test 30: 'OK' (0.041) - 98 characters
 
 30/30 tests passed - Total length: 2438 characters
+
+
+Commit :  ???
+
+New BFS with garbage balls only if in contact with switches
+
+Test 1: 'OK' (0.006) - 12 characters
+Test 2: 'OK' (0.006) - 7 characters
+Test 3: 'OK' (0.005) - 8 characters
+Test 4: 'OK' (0.006) - 18 characters
+Test 5: 'OK' (0.005) - 13 characters
+Test 6: 'OK' (0.027) - 94 characters
+Test 7: 'OK' (0.094) - 95 characters
+Test 8: 'OK' (0.117) - 92 characters
+Test 9: 'OK' (0.291) - 93 characters
+Test 10: 'OK' (0.190) - 68 characters
+Test 11: 'OK' (0.245) - 97 characters
+Test 12: 'OK' (0.084) - 89 characters
+Test 13: 'OK' (0.058) - 95 characters
+Test 14: 'OK' (0.153) - 100 characters
+Test 15: 'OK' (0.029) - 93 characters
+Test 16: 'OK' (0.027) - 100 characters
+Test 17: 'OK' (0.125) - 87 characters
+Test 18: 'OK' (0.435) - 95 characters
+Test 19: 'OK' (0.053) - 73 characters
+Test 20: 'OK' (0.052) - 94 characters
+Test 21: 'OK' (0.060) - 73 characters
+Test 22: 'OK' (0.049) - 104 characters
+Test 23: 'OK' (0.037) - 86 characters
+Test 24: 'OK' (0.034) - 92 characters
+Test 25: 'OK' (0.049) - 91 characters
+Test 26: 'OK' (0.014) - 51 characters
+Test 27: 'OK' (0.129) - 92 characters
+Test 28: 'OK' (0.030) - 96 characters
+Test 29: 'OK' (0.006) - 25 characters
+Test 30: 'OK' (0.083) - 98 characters
+
+30/30 tests passed - Total length: 2231 characters

@@ -86,7 +86,7 @@ impl State {
 
         // cannot move the ball more than N times
         if let Some(ball_id) = self.get_ball_id(garbage_ball_position) {
-            if self.move_balls[ball_id] >= 2 {
+            if self.move_balls[ball_id] >= 4 {
                 return None;
             }
         }
@@ -104,11 +104,13 @@ impl State {
         match board.get_cell(target_ball) {
             Cell::Wall => None,
             Cell::MagneticField(_) => {
+                return None;
                 let mut new_state = self.clone();
                 new_state.move_ball(garbage_ball_position, target_ball);
                 Some(new_state)
             }
             Cell::Empty => {
+                return None;
                 let mut new_state = self.clone();
                 new_state.move_ball(garbage_ball_position, target_ball);
                 Some(new_state)
