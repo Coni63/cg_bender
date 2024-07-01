@@ -12,6 +12,7 @@ pub enum Cell {
 pub struct State {
     current_pos: usize,
     garbage_balls: Vec<usize>,
+    move_balls: Vec<u8>,
     actions: String,
     magnetic_fields: u16,
 }
@@ -23,6 +24,7 @@ impl State {
             garbage_balls: Vec::new(),
             actions: String::new(),
             magnetic_fields: 0,
+            move_balls: Vec::new(),
         }
     }
 
@@ -60,23 +62,34 @@ impl State {
 
     pub fn add_garbage_ball(&mut self, idx: usize) {
         self.garbage_balls.push(idx);
+        self.move_balls.push(0);
     }
 
     pub fn remove_garbage_ball_by_idx(&mut self, idx: usize) {
         self.garbage_balls.remove(idx);
+        self.move_balls.remove(idx);
     }
 
     pub fn move_ball(&mut self, from_idx: usize, to_idx: usize) {
-        for (i, &ball) in self.garbage_balls.iter().enumerate() {
-            if ball == from_idx {
-                self.garbage_balls[i] = to_idx;
-                break;
-            }
+        if let Some(i) = self.get_ball_id(from_idx) {
+            self.garbage_balls[i] = to_idx;
+            self.move_balls[i] += 1;
         }
+    }
+
+    pub fn get_ball_id(&self, idx: usize) -> Option<usize> {
+        self.garbage_balls.iter().position(|&x| x == idx)
     }
 
     pub fn try_push(&self, board: &Board, garbage_ball_position: usize) -> Option<State> {
         let target_ball = garbage_ball_position * 2 - self.current_pos; // ball + (ball - me)
+
+        // cannot move the ball more than N times
+        if let Some(ball_id) = self.get_ball_id(garbage_ball_position) {
+            if self.move_balls[ball_id] >= 2 {
+                return None;
+            }
+        }
 
         // cannot push the ball to the target
         if target_ball == board.get_target() {
@@ -90,7 +103,11 @@ impl State {
 
         match board.get_cell(target_ball) {
             Cell::Wall => None,
-            Cell::MagneticField(_) => None,
+            Cell::MagneticField(_) => {
+                let mut new_state = self.clone();
+                new_state.move_ball(garbage_ball_position, target_ball);
+                Some(new_state)
+            }
             Cell::Empty => {
                 let mut new_state = self.clone();
                 new_state.move_ball(garbage_ball_position, target_ball);
@@ -113,6 +130,7 @@ impl Clone for State {
             garbage_balls: self.garbage_balls.clone(),
             actions: self.actions.clone(),
             magnetic_fields: self.magnetic_fields,
+            move_balls: self.move_balls.clone(),
         }
     }
 }
