@@ -135,11 +135,6 @@ impl Hash for State {
             ball.hash(state);
         }
         self.magnetic_fields.hash(state);
-
-        // eprintln!(
-        //     "{} {:?} {}",
-        //     self.current_pos, self.garbage_balls, self.magnetic_fields
-        // );
     }
 }
 
@@ -204,6 +199,14 @@ impl Board {
 
     #[allow(dead_code)]
     pub fn show(&self, state: &State) {
+        let x_start = self.start % 21;
+        let y_start = self.start / 21;
+        let x_target = self.target % 21;
+        let y_target = self.target / 21;
+        eprintln!(
+            "Start: ({}, {}) -> Target: ({}, {})",
+            x_start, y_start, x_target, y_target
+        );
         for y in 0..21 {
             for x in 0..21 {
                 let idx = y * 21 + x;
