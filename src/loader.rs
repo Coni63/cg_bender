@@ -1,12 +1,16 @@
 use crate::board::{Board, Cell, State};
 use std::io;
 
+/// Parse une chaîne (trim) vers le type `$t`, panique si invalide.
 macro_rules! parse_input {
     ($x:expr, $t:ident) => {
         $x.trim().parse::<$t>().unwrap()
     };
 }
 
+/// Lit l'entrée CodinGame sur stdin : dimensions, grille, start, target, puis
+/// les switchs (position du switch, position du champ, état initial).
+/// Retourne le `Board` (statique) et le `State` initial (position, balls, champs actifs).
 pub fn load_inputs() -> (Board, State) {
     let mut board = Board::new();
     let mut state = State::new(0);

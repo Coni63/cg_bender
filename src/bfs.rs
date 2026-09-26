@@ -2,6 +2,12 @@ use std::collections::{HashSet, VecDeque};
 
 use crate::board::{Board, Cell, State};
 
+/// BFS sur l'état complet (position, balls, champs actifs) depuis `initial_state`.
+/// Retourne le premier état atteignant la cible (donc un plus court chemin en
+/// nombre de mouvements), avec `actions` contenant le chemin U/D/L/R.
+/// Règles : mur = bloquant ; champ actif = létal donc interdit ; switch = toggle
+/// le champ en y entrant ; ball = poussée via `State::try_push` (sinon bloquant).
+/// Retourne None si la cible est inatteignable.
 pub fn solve(board: &Board, initial_state: &State) -> Option<State> {
     let offset: [(i32, char); 4] = [(-1, 'L'), (1, 'R'), (-21, 'U'), (21, 'D')];
 
@@ -37,7 +43,6 @@ pub fn solve(board: &Board, initial_state: &State) -> Option<State> {
                                 match current_state.try_push(board, new_idx) {
                                     None => continue,
                                     Some(mut new_state) => {
-                                        new_state.toggle_magnetic_field(*id);
                                         new_state.add_actions(direction);
                                         new_state.set_current_pos(new_idx);
                                         queue.push_back(new_state);

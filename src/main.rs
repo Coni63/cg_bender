@@ -9,6 +9,9 @@ use bfs::solve;
 use encoder::{cost_of, deep_compress, quick_compress, stringify};
 use loader::load_inputs;
 
+/// Pipeline : charge -> simplifie la grille -> cherche un chemin -> compresse.
+/// Budget temps total ~850 ms (Rust non optimisé sur CodinGame).
+/// Le programme compressé est écrit sur stdout, les logs sur stderr.
 fn main() {
     let (mut board, mut state) = load_inputs();
 
@@ -21,7 +24,6 @@ fn main() {
     let step_timer = std::time::Instant::now();
     let states = solve(&board, &state);
     eprintln!("Finding the solution tooks {:?}", step_timer.elapsed());
-    // eprintln!("States found: {}", states.len());
 
     let step_timer = std::time::Instant::now();
 

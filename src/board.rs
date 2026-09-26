@@ -1,6 +1,8 @@
 use std::fmt::{Debug, Formatter, Result};
 use std::hash::{Hash, Hasher};
 
+/// Contenu statique d'une case. Les balls ne sont pas ici : elles bougent, donc
+/// elles vivent dans `State`. L'usize de Switch/MagneticField est l'id de la paire.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Cell {
     Wall,
@@ -9,12 +11,16 @@ pub enum Cell {
     Empty,
 }
 
+/// État mutable d'une recherche : position, balls, champs actifs et chemin parcouru.
+/// Positions = index plat dans la grille 21x21 (y * 21 + x).
+/// Hash/Eq ignorent `actions` et `move_balls` : seul (pos, balls, champs) compte
+/// pour dédupliquer les états visités.
 pub struct State {
     current_pos: usize,
-    garbage_balls: Vec<usize>,
-    move_balls: Vec<u8>,
-    actions: String,
-    magnetic_fields: u16,
+    garbage_balls: Vec<usize>, // positions des balls
+    move_balls: Vec<u8>,       // nb de poussées par ball (même indexation)
+    actions: String,           // chemin parcouru (U/D/L/R)
+    magnetic_fields: u16,      // bitmask : bit i = champ i actif (létal)
 }
 
 impl State {
@@ -28,6 +34,7 @@ impl State {
         }
     }
 
+    /// Inverse l'état du champ `idx` (ON <-> OFF).
     pub fn toggle_magnetic_field(&mut self, idx: usize) {
         self.magnetic_fields ^= 1 << idx;
     }
@@ -70,6 +77,7 @@ impl State {
         self.move_balls.remove(idx);
     }
 
+    /// Déplace la ball située en `from_idx` vers `to_idx` (no-op si pas de ball).
     pub fn move_ball(&mut self, from_idx: usize, to_idx: usize) {
         if let Some(i) = self.get_ball_id(from_idx) {
             self.garbage_balls[i] = to_idx;
@@ -81,6 +89,10 @@ impl State {
         self.garbage_balls.iter().position(|&x| x == idx)
     }
 
+    /// Tente de pousser la ball en `garbage_ball_position` (depuis la position courante).
+    /// Retourne le nouvel état (ball déplacée + champ togglé), ou None si interdit.
+    /// Élagage volontaire : on ne pousse qu'une ball qui atterrit sur un switch.
+    /// NB : la position du joueur et `actions` sont mis à jour par l'appelant.
     pub fn try_push(&self, board: &Board, garbage_ball_position: usize) -> Option<State> {
         let target_ball = garbage_ball_position * 2 - self.current_pos; // ball + (ball - me)
 
@@ -158,6 +170,8 @@ impl PartialEq for State {
     }
 }
 
+/// Grille fixe 21x21 (taille max du jeu) + points d'intérêt.
+/// Les cases hors de la zone lue restent des murs.
 pub struct Board {
     board: [Cell; 441],
     start: usize,
@@ -177,6 +191,7 @@ impl Board {
         }
     }
 
+    /// Pose une case en (x, y) et mémorise la position des switchs/champs par id.
     pub fn set_cell(&mut self, x: usize, y: usize, cell: Cell) {
         let pos = y * 21 + x;
         match cell {
@@ -207,6 +222,7 @@ impl Board {
         self.target
     }
 
+    /// Debug : affiche la grille sur stderr (# mur, . vide, S switch, M champ, + ball).
     #[allow(dead_code)]
     pub fn show(&self, state: &State) {
         let x_start = self.start % 21;
@@ -235,6 +251,8 @@ impl Board {
         }
     }
 
+    /// Transforme en mur les culs-de-sac (case vide à 3 murs, hors start/target),
+    /// en boucle jusqu'à stabilité. Réduit l'espace de recherche.
     fn simplify_deadend(&mut self) {
         let offset = [-1, 1, -21, 21];
 
@@ -266,6 +284,8 @@ impl Board {
         }
     }
 
+    /// Une ball coincée dans un coin (2 murs adjacents perpendiculaires) est
+    /// immobile pour toujours : on la convertit en mur et on la retire de `state`.
     fn simplify_balls(&mut self, state: &mut State) {
         let mut idx_to_change = vec![];
         let corners = [(-1, -21), (1, -21), (-1, 21), (1, 21)];
@@ -286,21 +306,9 @@ impl Board {
         }
     }
 
+    /// Applique toutes les simplifications (à appeler une fois après le chargement).
     pub fn simplify(&mut self, state: &mut State) {
         self.simplify_balls(state);
         self.simplify_deadend();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_vec() {
-        let v1 = vec![1, 2, 3];
-        let v2 = vec![1, 3, 2];
-
-        assert!(v1 == v2);
     }
 }

@@ -1,5 +1,8 @@
 use std::{cmp::min, collections::HashMap, time::Instant};
 
+/// Compte les occurrences de chaque sous-chaîne candidate (longueur 2..WINDOW)
+/// pour en faire des macros. Les occurrences se chevauchent : le compte est
+/// une borne haute du nombre de remplacements réels.
 fn find_substrings<'a>(s: &'a str) -> HashMap<&'a str, i32> {
     let mut substr_count = HashMap::new();
     let length = s.len();
@@ -22,6 +25,9 @@ fn find_substrings<'a>(s: &'a str) -> HashMap<&'a str, i32> {
     substr_count
 }
 
+/// Ne garde que les sous-chaînes rentables (gain < 0) et les trie, meilleur d'abord.
+/// gain = len * (1 - occurrences) + 2 : coût de la macro (len + ';' + chiffre
+/// à sa 1re place) moins les caractères économisés. Plus négatif = meilleur.
 fn sort_substring<'a>(counter: &HashMap<&'a str, i32>) -> Vec<(&'a str, i32)> {
     let mut ans: Vec<(&str, i32)> = counter
         .iter()
@@ -36,6 +42,7 @@ fn sort_substring<'a>(counter: &HashMap<&'a str, i32>) -> Vec<(&'a str, i32)> {
     ans
 }
 
+/// Assemble le programme final : "core;macro1;macro2;..." (macro i = chiffre i).
 pub fn stringify(s: &str, macros: &[String]) -> String {
     [s.to_string()]
         .iter()
@@ -50,6 +57,7 @@ pub fn stringify(s: &str, macros: &[String]) -> String {
 /// occurrences par le prochain digit disponible, et on répète.
 /// Pas de récursion/branchement => O(max_macros * n * WINDOW), donc
 /// aucun besoin de deadline ou de cache ici.
+/// (Non utilisée : remplacée par `compress_greedy_from`, gardée comme référence.)
 fn _compress_greedy(s: &str, max_macros: usize) -> (String, Vec<String>) {
     let mut current = s.to_string();
     let mut macros: Vec<String> = Vec::new();
@@ -149,6 +157,7 @@ fn compress_greedy_from(
     (current, macros)
 }
 
+/// Taille du programme final : core + chaque macro et son séparateur ';'.
 fn cost(core: &str, macros: &[String]) -> usize {
     core.len() + macros.iter().map(|m| m.len() + 1).sum::<usize>()
 }
@@ -230,10 +239,15 @@ fn compress_hybrid(
     best
 }
 
+/// Compression gloutonne pure, 9 macros max. Rapide : sert de filtre en phase 1.
 pub fn quick_compress(s: &str) -> (String, Vec<String>) {
     compress_greedy_from(s, &[], 9)
 }
 
+/// Compression approfondie (beam search) d'un chemin, retourne le programme final.
+/// Essaie deux variantes et garde la plus courte : sans queue récursive (9 macros),
+/// et avec (8 macros + 1 slot réservé à la fonction récursive, marquée par le
+/// sentinel '0' remplacé ici par le vrai chiffre).
 pub fn deep_compress(s: &str, deadline: Instant) -> String {
     const BRANCH_DEPTH: usize = 2;
     const BEAM_WIDTH: usize = 5;
@@ -258,6 +272,7 @@ pub fn deep_compress(s: &str, deadline: Instant) -> String {
     }
 }
 
+/// Version publique de `cost` (utilisée par main pour classer les candidats).
 pub fn cost_of(core: &str, macros: &[String]) -> usize {
     cost(core, macros)
 }
