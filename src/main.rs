@@ -3,42 +3,75 @@ mod board;
 mod encoder;
 mod loader;
 
+use std::time::{Duration, Instant};
+
 use bfs::solve;
-use encoder::encode_actions;
+use encoder::{cost_of, deep_compress, quick_compress, stringify};
 use loader::load_inputs;
 
 fn main() {
     let (mut board, mut state) = load_inputs();
-    // board.show();
 
     let timer = std::time::Instant::now();
-
-    // board.show(&state);
 
     let step_timer = std::time::Instant::now();
     board.simplify(&mut state);
     eprintln!("Simplify the board tooks {:?}", step_timer.elapsed());
 
-    // board.show(&state);
+    let step_timer = std::time::Instant::now();
+    let states = solve(&board, &state);
+    eprintln!("Finding the solution tooks {:?}", step_timer.elapsed());
+    // eprintln!("States found: {}", states.len());
 
     let step_timer = std::time::Instant::now();
 
-    let actions = match solve(&board, &state) {
-        Some(state) => {
-            eprintln!("Finding the solution tooks {:?} ", step_timer.elapsed());
-            state.get_actions().clone()
-        }
-        None => {
-            eprintln!("No solution found");
-            String::new()
-        }
-    };
+    // Phase 1 : passe gloutonne rapide sur tous les candidats pour identifier
+    // les plus prometteurs (quasi gratuit, sert de filtre de compressibilité).
+    let mut scored: Vec<(usize, String)> = states
+        .iter()
+        .map(|state| {
+            let actions = state.get_actions();
+            let (core, macros) = quick_compress(actions);
+            (cost_of(&core, &macros), actions.clone())
+        })
+        .collect();
+    scored.sort_by_key(|(c, _)| *c);
 
-    let step_timer = std::time::Instant::now();
-    let encoded = encode_actions(&actions);
+    eprintln!(
+        "Quick pass took {:?}, best quick score: {}",
+        step_timer.elapsed(),
+        scored.first().map(|(c, _)| *c).unwrap_or(0)
+    );
+
+    // Phase 2 : branchement approfondi seulement sur le top-K des candidats
+    // déjà identifiés comme les plus compressibles.
+    const TOP_K: usize = 5;
+    let compression_deadline = timer + Duration::from_millis(850);
+
+    let mut shortest_path = String::new();
+    let mut min_dist = usize::MAX;
+
+    // On garde d'abord le meilleur résultat de la phase 1 comme baseline,
+    // au cas où la phase 2 serait interrompue avant même le premier candidat.
+    if let Some((c, s)) = scored.first() {
+        let (core, macros) = quick_compress(s);
+        shortest_path = stringify(&core, &macros);
+        min_dist = *c;
+    }
+
+    for (_, actions) in scored.iter().take(TOP_K) {
+        if Instant::now() >= compression_deadline {
+            eprintln!("Deep compression deadline reached, stopping early");
+            break;
+        }
+        let encoded = deep_compress(actions, compression_deadline);
+        if encoded.len() < min_dist {
+            min_dist = encoded.len();
+            shortest_path = encoded;
+        }
+    }
     eprintln!("Encoding the solution tooks {:?}", step_timer.elapsed());
-
     eprintln!("Total Time: {:?}", timer.elapsed());
 
-    println!("{}", encoded)
+    println!("{}", shortest_path)
 }
