@@ -265,17 +265,68 @@ pub fn cost_of(core: &str, macros: &[String]) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
+
+    const PATH: &str = "DDDDRRDDDDDUUUUULLUUUULLLLUUDDRRRRDDDDRRDDDDDDDDDDDDLLUUUULLUUUUULURUULLLLRRRRDDLDRRRDDDDDLLLLUUUULRDDDDRRRRDDDDLLUDRRUUUULLUUUUULULLLLLUULLLLLLLLDDDDDDRRRRUDRRRRRRDLLDDDRRDDLLLLLLUUUULLLLUUUUUUUURRRRRRRRDRDRRRRRDRRDDDDDDDDDRRUUUUUUUUUUUULLUUUULLLLLLLLUUL";
+
+    /// Expands a program ("core;m1;m2;...") into at most `limit` actions.
+    /// Recursion-safe: stops as soon as `limit` actions are produced.
+    fn expand(program: &str, limit: usize) -> String {
+        let parts: Vec<&str> = program.split(';').collect();
+        let mut out = String::new();
+        // pile d'exécution : (fonction, index)
+        let mut stack: Vec<(usize, usize)> = vec![(0, 0)];
+        while let Some(&(f, i)) = stack.last() {
+            if out.len() >= limit {
+                break;
+            }
+            let bytes = parts[f].as_bytes();
+            if i >= bytes.len() {
+                stack.pop();
+                continue;
+            }
+            stack.last_mut().unwrap().1 += 1;
+            let c = bytes[i] as char;
+            if let Some(d) = c.to_digit(10) {
+                stack.push((d as usize, 0));
+            } else {
+                out.push(c);
+            }
+        }
+        out
+    }
+
+    fn check(program: &str, path: &str) {
+        assert!(program.len() < path.len(), "pas de compression: {program}");
+        assert!(
+            expand(program, path.len()) == path,
+            "le programme ne reproduit pas le chemin: {program}"
+        );
+    }
 
     #[test]
-    fn test_encoding() {
-        let s = String::from("DDDDRRDDDDDUUUUULLUUUULLLLUUDDRRRRDDDDRRDDDDDDDDDDDDLLUUUULLUUUUULURUULLLLRRRRDDLDRRRDDDDDLLLLUUUULRDDDDRRRRDDDDLLUDRRUUUULLUUUUULULLLLLUULLLLLLLLDDDDDDRRRRUDRRRRRRDLLDDDRRDDLLLLLLUUUULLLLUUUUUUUURRRRRRRRDRDRRRRRDRRDDDDDDDDDRRUUUUUUUUUUUULLUUUULLLLLLLLUUL");
-        // let s = String::from("UUUUDDDDUUUUDDDD");
-        let start_time = std::time::Instant::now();
-        let ans = encode_actions(&s);
-        assert!(!ans.is_empty());
-        assert!(ans.len() < s.len());
+    fn test_greedy() {
+        let (core, macros) = quick_compress(PATH);
+        let program = stringify(&core, &macros);
+        eprintln!("greedy: {} chars -> {program}", program.len());
+        check(&program, PATH);
+    }
 
-        eprintln!("{:?}", ans);
-        eprintln!("Time: {:?}", start_time.elapsed());
+    #[test]
+    fn test_beam_search() {
+        let deadline = Instant::now() + Duration::from_millis(800);
+        let program = deep_compress(PATH, deadline);
+        eprintln!("beam: {} chars -> {program}", program.len());
+        check(&program, PATH);
+    }
+
+    #[test]
+    fn test_beam_not_worse_than_greedy() {
+        let (core, macros) = quick_compress(PATH);
+        let greedy = stringify(&core, &macros);
+        let deadline = Instant::now() + Duration::from_millis(800);
+        let beam = deep_compress(PATH, deadline);
+        eprintln!("greedy={} beam={}", greedy.len(), beam.len());
+        assert!(beam.len() <= greedy.len());
     }
 }
