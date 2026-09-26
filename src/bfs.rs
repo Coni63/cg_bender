@@ -10,7 +10,7 @@ pub fn solve(board: &Board, initial_state: &State) -> Option<State> {
 
     queue.push_back(initial_state.clone());
     let mut count = 0;
-    let start_time = std::time::Instant::now();
+    // let start_time = std::time::Instant::now();
     // while start_time.elapsed().as_millis() < 25000 {
     loop {
         match queue.pop_front() {
@@ -83,5 +83,4 @@ pub fn solve(board: &Board, initial_state: &State) -> Option<State> {
             }
         }
     }
-    None
 }

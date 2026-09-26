@@ -102,19 +102,9 @@ impl State {
         }
 
         match board.get_cell(target_ball) {
-            Cell::Wall => None,
-            Cell::MagneticField(_) => {
-                return None;
-                let mut new_state = self.clone();
-                new_state.move_ball(garbage_ball_position, target_ball);
-                Some(new_state)
-            }
-            Cell::Empty => {
-                return None;
-                let mut new_state = self.clone();
-                new_state.move_ball(garbage_ball_position, target_ball);
-                Some(new_state)
-            }
+            // Pruning: a ball is only worth pushing when it lands directly on a switch
+            // (maps are solvable without moving any ball, so this only loses shorter paths).
+            Cell::Wall | Cell::MagneticField(_) | Cell::Empty => None,
             Cell::Switch(id) => {
                 let mut new_state = self.clone();
                 new_state.move_ball(garbage_ball_position, target_ball);

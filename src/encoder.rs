@@ -50,7 +50,7 @@ pub fn stringify(s: &str, macros: &[String]) -> String {
 /// occurrences par le prochain digit disponible, et on répète.
 /// Pas de récursion/branchement => O(max_macros * n * WINDOW), donc
 /// aucun besoin de deadline ou de cache ici.
-fn compress_greedy(s: &str, max_macros: usize) -> (String, Vec<String>) {
+fn _compress_greedy(s: &str, max_macros: usize) -> (String, Vec<String>) {
     let mut current = s.to_string();
     let mut macros: Vec<String> = Vec::new();
 
