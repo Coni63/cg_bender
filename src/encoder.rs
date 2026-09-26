@@ -272,6 +272,99 @@ pub fn deep_compress(s: &str, deadline: Instant) -> String {
     }
 }
 
+/// Découpe un chemin en lignes droites maximales : (direction, longueur, extensible).
+/// Une ligne est extensible si la rejouer une fois de plus serait un coup perdu
+/// (mur), auquel cas sa longueur peut être n'importe quelle valeur >= la longueur
+/// actuelle sans changer le résultat. `free[i]` vient de `sim::repeat_is_free`.
+pub fn split_runs(path: &str, free: &[bool]) -> Vec<(u8, usize, bool)> {
+    let bytes = path.as_bytes();
+    let mut runs: Vec<(u8, usize, bool)> = vec![];
+    for (i, &c) in bytes.iter().enumerate() {
+        match runs.last_mut() {
+            Some((d, len, ext)) if *d == c => {
+                *len += 1;
+                *ext = free[i];
+            }
+            _ => runs.push((c, 1, free[i])),
+        }
+    }
+    runs
+}
+
+/// Variantes équivalentes du chemin : chaque ligne extensible est portée à
+/// au moins `l` (pour l = 2..=max_l). Toutes gagnent exactement comme l'original
+/// mais se répètent davantage, donc se compressent souvent mieux.
+pub fn widen_variants(runs: &[(u8, usize, bool)], max_l: usize) -> Vec<String> {
+    let mut out: Vec<String> = vec![];
+    for l in 2..=max_l {
+        let v: String = runs
+            .iter()
+            .flat_map(|&(d, len, ext)| {
+                let n = if ext { len.max(l) } else { len };
+                std::iter::repeat(d as char).take(n)
+            })
+            .collect();
+        if !out.contains(&v) {
+            out.push(v);
+        }
+    }
+    out
+}
+
+/// Écrit le chemin où chaque ligne extensible d'une direction `d` fait au moins
+/// `l[d]` (indexé par `dir_index`).
+fn build_with_lengths(runs: &[(u8, usize, bool)], l: &[usize; 4]) -> String {
+    runs.iter()
+        .flat_map(|&(d, len, ext)| {
+            let n = if ext { len.max(l[dir_index(d)]) } else { len };
+            std::iter::repeat(d as char).take(n)
+        })
+        .collect()
+}
+
+fn dir_index(d: u8) -> usize {
+    match d {
+        b'U' => 0,
+        b'D' => 1,
+        b'L' => 2,
+        _ => 3,
+    }
+}
+
+/// Descente de coordonnées sur une longueur minimale par direction (U, D, L, R),
+/// jugée par le coût du compresseur glouton. Retourne le meilleur chemin trouvé.
+pub fn tune_lengths(runs: &[(u8, usize, bool)], max_l: usize, deadline: Instant) -> String {
+    let eval = |l: &[usize; 4]| {
+        let s = build_with_lengths(runs, l);
+        let (core, macros) = compress_greedy_from(&s, &[], 9);
+        cost(&core, &macros)
+    };
+    let mut l = [1usize; 4];
+    let mut best = eval(&l);
+    for _round in 0..2 {
+        let mut improved = false;
+        for d in 0..4 {
+            for cand in 1..=max_l {
+                if Instant::now() >= deadline {
+                    return build_with_lengths(runs, &l);
+                }
+                let mut l2 = l;
+                l2[d] = cand;
+                let c = eval(&l2);
+                if c < best {
+                    best = c;
+                    l = l2;
+                    improved = true;
+                }
+            }
+        }
+        if !improved {
+            break;
+        }
+    }
+    build_with_lengths(runs, &l)
+}
+
 /// Version publique de `cost` (utilisée par main pour classer les candidats).
 pub fn cost_of(core: &str, macros: &[String]) -> usize {
     cost(core, macros)

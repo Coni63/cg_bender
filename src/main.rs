@@ -2,11 +2,12 @@ mod bfs;
 mod board;
 mod encoder;
 mod loader;
+mod sim;
 
 use std::time::{Duration, Instant};
 
 use bfs::solve;
-use encoder::{cost_of, deep_compress, quick_compress, stringify};
+use encoder::{cost_of, deep_compress, quick_compress, split_runs, stringify, tune_lengths, widen_variants};
 use loader::load_inputs;
 
 /// Pipeline : charge -> simplifie la grille -> cherche un chemin -> compresse.
@@ -16,6 +17,9 @@ fn main() {
     let (mut board, mut state) = load_inputs();
 
     let timer = std::time::Instant::now();
+    // La simulation exacte tourne sur la carte d'origine (avant simplification).
+    let raw_board = board.clone();
+    let raw_state = state.clone();
 
     let step_timer = std::time::Instant::now();
     board.simplify(&mut state);
@@ -29,12 +33,24 @@ fn main() {
 
     // Phase 1 : passe gloutonne rapide sur tous les candidats pour identifier
     // les plus prometteurs (quasi gratuit, sert de filtre de compressibilité).
-    let mut scored: Vec<(usize, String)> = states
-        .iter()
-        .map(|state| {
-            let actions = state.get_actions();
-            let (core, macros) = quick_compress(actions);
-            (cost_of(&core, &macros), actions.clone())
+    let mut candidates: Vec<String> = states.iter().map(|s| s.get_actions().clone()).collect();
+    if let Some(base) = candidates.first().cloned() {
+        eprintln!("solver path valid: {}", sim::wins(&raw_board, &raw_state, &base));
+        let free = sim::repeat_is_free(&raw_board, &raw_state, &base);
+        let runs = split_runs(&base, &free);
+        eprintln!(
+            "runs: {}, extensible: {}",
+            runs.len(),
+            runs.iter().filter(|r| r.2).count()
+        );
+        candidates.extend(widen_variants(&runs, 12));
+        candidates.push(tune_lengths(&runs, 12, timer + Duration::from_millis(500)));
+    }
+    let mut scored: Vec<(usize, String)> = candidates
+        .into_iter()
+        .map(|actions| {
+            let (core, macros) = quick_compress(&actions);
+            (cost_of(&core, &macros), actions)
         })
         .collect();
     scored.sort_by_key(|(c, _)| *c);
@@ -72,6 +88,7 @@ fn main() {
             shortest_path = encoded;
         }
     }
+    eprintln!("final program valid: {}", sim::wins(&raw_board, &raw_state, &shortest_path));
     eprintln!("Encoding the solution tooks {:?}", step_timer.elapsed());
     eprintln!("Total Time: {:?}", timer.elapsed());
 

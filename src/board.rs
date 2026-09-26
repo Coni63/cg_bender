@@ -172,6 +172,7 @@ impl PartialEq for State {
 
 /// Grille fixe 21x21 (taille max du jeu) + points d'intérêt.
 /// Les cases hors de la zone lue restent des murs.
+#[derive(Clone)]
 pub struct Board {
     board: [Cell; 441],
     start: usize,

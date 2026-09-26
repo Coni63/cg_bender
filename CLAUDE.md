@@ -196,6 +196,28 @@ l'état réel du jeu. Pas de cas confirmé à ce jour, mais une simulation de
 validation complète du chemin final avant compression serait un bon
 filet de sécurité si des bugs difficiles à expliquer apparaissent.
 
+## Slack des coups perdus (état actuel, à lire en premier)
+
+Le code a divergé de la description historique ci-dessus : `bfs::solve` est un
+BFS d'état complet qui renvoie UN seul plus court chemin.
+
+- `src/sim.rs` : simulateur fidèle au moteur (source Bender4 : Robot/Box/
+  Interpreter/Referee), sur la carte NON simplifiée (`raw_board`, clone pris
+  avant `simplify`). Points du moteur non évidents : une ball se pousse sur
+  n'importe quelle case libre (champ actif compris), 1000 tours max (appels et
+  retours de fonction comptent), un chiffre est un coup à vide.
+  `wins()` valide un programme complet ; `main` l'utilise en garde-fou.
+- Idée : un coup contre un mur est gratuit, donc une ligne droite qui finit
+  contre un mur peut avoir n'importe quelle longueur >= la longueur nécessaire.
+  `sim::repeat_is_free` marque ces lignes, `encoder::split_runs` les découpe,
+  `widen_variants` / `tune_lengths` choisissent les longueurs pour maximiser
+  la répétition avant compression (>50 % des lignes sont extensibles).
+- Bench release : 1976 (avant) -> 1906 (élargissement uniforme) -> 1877
+  (longueur min par direction, descente de coordonnées). Temps max ~0.78 s.
+- Pistes suivantes : insérer des coups perdus n'importe où (pas seulement en
+  fin de ligne), choix par ligne plutôt que par direction, recherche directe
+  sur les programmes. Le BFS (~350 ms) reste le poste de temps principal.
+
 ## Fichiers concernés
 
 - `src/board.rs` : représentation + simplifications de la grille.
