@@ -45,200 +45,109 @@ Source du moteur : https://github.com/eulerscheZahl/Bender4
 
 ## Architecture actuelle du solveur
 
-1. **`board.rs`** : représentation de la grille, simplifications :
-   - `simplify_deadend` : supprime récursivement les culs-de-sac (cases
-     vides à 3 murs adjacents, hors start/target) → réduit la taille du
-     graphe de recherche.
-   - `simplify_balls` : une ball coincée dans un coin (2 murs adjacents en
-     diagonale) est convertie en mur → simplifie `bfs`/`find_path` en
-     supprimant un état inutile à tracker.
+Idée centrale : le juge **exécute** le programme et regarde si Bender atteint
+Fry ; il n'exige pas de reproduire un chemin. On cherche donc directement dans
+l'espace des programmes, avec un simulateur exact comme juge.
 
-2. **`bfs.rs`** :
-   - `bfs(start, target, ...)` : BFS classique point-à-point sur la grille
-     simplifiée (une case = un nœud, ignore l'état des switches en transit).
-   - `prepare(board, state)` : précalcule, pour chaque paire (départ,
-     cible) parmi {start, target, tous les switches, tous les champs
-     magnétiques}, le chemin BFS entre les deux → **graphe compressé** où
-     les nœuds sont uniquement les points d'intérêt, les arêtes sont des
-     séquences de mouvements précalculées.
-   - `find_path(graph, board, state)` : Dijkstra (`BinaryHeap` avec
-     `State::Ord` inversé = min-heap sur la longueur du chemin) sur ce
-     graphe compressé. État = `(position, bitmask des champs actifs)`,
-     dédupliqué par hash. Garde jusqu'à **100 chemins candidats**
-     atteignant la cible (ou coupe à 900ms), pas juste le premier trouvé.
+1. **`search.rs`** (le cœur) :
+   - `World::new` : carte brute (non simplifiée) + **table de distance exacte**
+     `dist[masque * 441 + pos]` vers Fry, par BFS arrière sur les états
+     (position, champs actifs), balls traitées comme des murs. ~3 ms en release.
+   - `random_shortest_path` : tire des plus courts chemins au hasard en suivant
+     la table (biais « garder la direction » réglable) → chemins de départ variés.
+   - `exec` / `run_from` : simulateur rapide, vérifié contre `sim::wins` par
+     le test `fast_sim_matches_reference`. Optimisations : bitset + hash Zobrist
+     des balls, pile réutilisée, **détection de cycle de Brent** sur les appels
+     (même état + même fonction appelée sans redescendre dans la pile = boucle
+     infinie prouvée → perdu tout de suite), **reprise sur préfixe** (`Trace` :
+     état sauvegardé avant chaque token du main ; un programme muté n'est
+     resimulé qu'à partir du premier token dont l'exécution touche la partie
+     modifiée).
+   - `anneal` : recuit simulé sur le programme. Score = taille +
+     λ × (distance minimale à Fry atteinte pendant l'exécution). Mutations :
+     remplacer/supprimer/insérer/échanger/dupliquer un caractère, extraire une
+     sous-chaîne en fonction, inliner un appel, et surtout **remplacer un bloc
+     de 1-4 caractères par 0-4 tokens aléatoires** (poids BLOCK=50, gros gain).
+     Tout programme gagnant plus court croisé est gardé, même s'il est refusé.
+   - `best_main` : fonctions fixées, BFS sur les états du jeu (un token = un
+     coup ou un appel) → main optimal. Gain rare, gardé en polish final.
+2. **`encoder.rs`** : compression gloutonne / hybride d'un chemin en
+   programme (sert seulement à fabriquer les programmes de départ du recuit).
+   `split_runs` / `widen_variants` allongent les lignes droites qui finissent
+   contre un mur (coups gratuits).
+3. **`sim.rs`** : simulateur de référence, fidèle au moteur (vérifié ligne à
+   ligne contre Interpreter/Robot/Box/Referee du dépôt Bender4). `main`
+   revalide toujours le programme final avec `sim::wins`.
+4. **`main.rs`** : table de distance → chemins aléatoires + compression
+   (~8 % du budget) → recuit **exploration** (2 chaînes, λ=3, T 3→0.5, 70 % du
+   reste) → recuit **affinage** depuis le meilleur gagnant (λ=20 : reste parmi
+   les gagnants, T 1→0.1) → `best_main`.
 
-3. **`encode.rs`** (le plus retravaillé) :
-   - `find_substrings` : énumère les sous-chaînes candidates (fenêtre de
-     taille max configurable, actuellement 30) pour devenir des macros.
-     **Autorise les chiffres** dans les motifs (permet la composition
-     hiérarchique de macros — une macro peut être construite à partir
-     d'une autre déjà définie).
-   - `sort_substring` : trie les candidats par gain réel
-     `gain = len × (1 - occurrences) + 2` (négatif = rentable).
-   - `compress_greedy_from` : passe **gloutonne sans branchement** —
-     prend systématiquement le meilleur candidat, répète jusqu'à
-     `max_macros` ou plus rien à gagner. Quasi gratuit en temps de calcul.
-   - `compress_hybrid` : **branche sur les 2 premiers niveaux** avec un
-     beam de 5, complète chaque branche en glouton pur, garde le meilleur
-     résultat. Deadline absolue passée en paramètre (jamais recréée par
-     appel, pour éviter la multiplication par le nombre de candidats).
-   - `extract_recursive_tail` : détecte un motif périodique en toute fin
-     de chemin et le transforme en fonction récursive auto-appelante
-     (`motif + appel de soi-même`), en évaluant si le gain net est positif.
-   - **Pipeline en 2 phases dans `main()`** :
-     - Phase 1 (`quick_compress` = glouton pur) sur les 100 candidats
-       BFS, tri par taille compressée obtenue.
-     - Phase 2 (`deep_compress` = hybride avec branchement) seulement sur
-       le **top-K** (actuellement 5) des candidats les plus prometteurs
-       identifiés en phase 1, avec toute la deadline restante dédiée à eux.
+Tous les réglages passent par `search::param` (variables d'environnement :
+`BENDER_MS`, `SEED`, `E_L`, `E_T0`, `E_T1`, `E_RUNS`, `E_FRAC`, `R_L`, `R_T0`,
+`R_T1`, `BLOCK`, `F_PATHS`, `F_QUICK`, `F_DEEP`, `TOP_K`) pour les essais hors
+ligne ; les valeurs par défaut sont les meilleures mesurées.
 
-## Historique des scores (cas de test internes, cumul des chars)
+### Pourquoi l'exploration marche
+Avec une pénalité faible, la chaîne quitte vite les programmes gagnants et
+rétrécit ; les gagnants courts sont croisés surtout pendant cette descente. Les
+meilleurs résultats sont souvent des « vagabonds » récursifs quasi aléatoires
+qui profitent des coups contre les murs, ex. carte 6 :
+`U1;3D322231;RD44L44R;LDDRDRR;UULU` (33 chars, contre 79 avant). Le résultat
+reste très dépendant de la graine (variance par carte de ±10 chars).
 
-| Étape | Score |
-|---|---|
-| Baseline (beam=2, filtre `is_alphabetic`, sans deadline globale) | 2750 |
-| Fix filtre (autoriser chiffres dans les motifs) + beam=2 | 2463 |
-| Compression hybride avec cache + deadline globale (beam=4, branch total) | 2450 (mais timeout intermittent) |
-| Passage à `compress_greedy` pur (rapide mais sans branchement) | 2540 (régression) |
-| `compress_hybrid` (branch_depth=2, beam=5) avec deadline globale correcte | 2457 |
-| Split phase 1 (glouton sur tous) + phase 2 (hybride sur top-5) | **2442 (actuel)** |
+### Garbage balls
+Elles sont traitées comme des murs pour la table de distance et les chemins de
+départ (carte garantie solvable sans les bouger), mais le simulateur les gère
+exactement : si une mutation pousse une ball et que ça gagne, c'est accepté.
 
-Best du top 10 CodinGame (Rust) : ~1596-1675. Marge encore importante.
+## Historique des scores (cumul des chars, release)
+
+| Étape | Tests (30) | Validateurs (30) |
+|---|---|---|
+| Baseline (beam=2, filtre `is_alphabetic`) | 2750 | |
+| Split phase 1 / phase 2 | 2442 | |
+| Coups perdus en fin de ligne (`widen_variants`, `tune_lengths`) | 1877-1885 | 2321 |
+| Table de distance + chemins aléatoires + recuit sur le programme | 1488 | 1817 |
+| Exploration + affinage, reprise sur préfixe, détection de cycle | ~1270 | ~1620 |
+| Mutation par bloc (BLOCK=50) | **~1200** | **~1470-1510** |
+
+Best du top CodinGame : ~1200 (validateurs). Avec `BENDER_MS=8000` on obtient
+~1265 sur les validateurs : le temps de calcul reste un levier (×2 ≈ −50 à −100).
 
 ## Contraintes connues de la plateforme
 
-- Rust n'est **pas compilé avec optimisations** sur CodinGame → perf
-  notablement moins bonne qu'en C++/Java/C# à algorithme équivalent.
-  Le budget temps réel disponible est **~0.8s** (au lieu du 1s habituel,
-  marge de sécurité à garder).
-- Les meilleurs scores sont en C++/Java/C#, mais du Rust apparaît quand
-  même dans le top 10 → la marge de progression vient de l'algorithme,
-  pas uniquement du langage.
+- **Les validateurs (cartes réellement notées) ne sont PAS les 30 tests
+  publics.** Leurs entrées sont publiques dans le dépôt du moteur
+  (`config/test31.json` … `test60.json`), copiées dans `tests/validators/`.
+  Toujours mesurer sur les deux pour éviter le sur-réglage.
+- CodinGame semble compiler Rust **avec optimisations** : l'ancienne version
+  fait 2321 sur les validateurs en release (≈ 2340 observé sur CG) contre 2514
+  avec timeouts en debug. Le code reste sûr en debug (pas de dépassement
+  arithmétique, au moins 5 chemins générés même si la table est lente).
+- Limite : 1 s au premier tour. Budget interne 850 ms (~0.88 s mur, démarrage
+  du process compris).
 
-## Pistes déjà explorées
+## Pistes suivantes
 
-- ✅ Fix du filtre `is_alphabetic` → composition hiérarchique de macros.
-- ✅ Deadline globale (absolue, calculée une fois dans `main()`) au lieu
-  d'une deadline relative recréée à chaque appel — c'était la cause de
-  deux régressions timeout successives.
-- ✅ Split glouton rapide (filtre) / hybride profond (top-K seulement) —
-  meilleur usage du budget temps que brancher un peu partout.
-- ⚠️ Queue récursive (`extract_recursive_tail`) : implémentée mais
-  **impact réel non mesuré isolément**. À vérifier : combien de cas de
-  test en bénéficient vraiment, et de combien.
+- **Calcul hors ligne** : les entrées des validateurs sont publiques ; lancer
+  la recherche longtemps (minutes, plusieurs graines) par carte et coder en dur
+  les meilleurs programmes (avec repli sur le solveur si la carte est
+  inconnue) est sans doute ce que fait le haut du classement.
+- Vitesse : ~3-5 µs par itération ; la mutation clone encore des `Vec<Vec<u8>>`
+  (représentation à plat possible), l'exploration simule souvent ~1000 tours.
+- Recuit parallèle (parallel tempering) ou redémarrages depuis le meilleur
+  gagnant, voisinages plus structurés.
 
-## Pistes à tester ensuite (priorité suggérée)
-
-Avec les ~250ms libérés par le split phase 1/phase 2, la marge de temps
-n'est plus le facteur limitant — la priorité doit basculer vers la
-**qualité du chemin généré**, pas uniquement sa compression.
-
-### 1. Tuning des paramètres actuels (rapide, à faire en premier)
-Avant tout nouveau chantier, vérifier combien de marge de temps reste
-réellement disponible et pousser les curseurs existants un par un :
-- `TOP_K` (5 → 10/15) dans `main()`
-- `BEAM_WIDTH` dans `deep_compress` (5 → 8)
-- `BRANCH_DEPTH` (2 → 3)
-- `WINDOW` dans `find_substrings` (30 → plus grand, si le temps le permet)
-
-Mesurer l'impact de chaque changement isolément avant de les cumuler.
-
-### 2. Mesurer l'impact réel de `extract_recursive_tail`
-Ajouter un `eprintln!` pour savoir : sur combien de cas de test un motif
-récursif est trouvé, et quel gain ça apporte. Si le taux de déclenchement
-est faible, c'est un signal que les chemins générés ne se terminent pas
-naturellement par une ligne droite/motif cyclique → lien direct avec le
-point 3 ci-dessous (il faudrait *forcer* cette propriété plutôt que
-compter sur le hasard).
-
-### 3. Optimiser la génération du chemin lui-même (le plus gros chantier, probablement le plus payant)
-
-Le chemin vient actuellement d'un Dijkstra qui minimise la **longueur
-brute**. Mais l'objectif réel est la taille **compressée**. Deux chemins
-de même longueur peuvent compresser très différemment. Pistes concrètes :
-
-- **Chemins alternatifs de même coût entre deux nœuds du graphe** :
-  `bfs()` ne retourne qu'un seul chemin par paire de nœuds. Sur une
-  grille, plusieurs chemins de longueur minimale existent souvent (ex:
-  "droite puis haut" vs "haut puis droite"). Modifier `bfs` pour
-  retourner plusieurs variantes optimales, puis choisir lors de
-  l'assemblage celle qui réutilise un motif déjà présent ailleurs dans
-  le trajet global plutôt que la première trouvée arbitrairement.
-
-- **Ordre de visite des switches** : si plusieurs ordres donnent un coût
-  total égal ou proche (façon TSP), certains génèrent des trajets plus
-  symétriques/répétitifs. Énumérer quelques ordres alternatifs dans
-  `find_path` plutôt que de garder l'unique ordre exploré par le
-  Dijkstra actuel.
-
-- **Forcer une fin de trajet compressible** : plutôt que d'espérer que
-  `extract_recursive_tail` trouve un motif par chance, orienter la
-  recherche de chemin pour que le dernier segment vers la cible soit une
-  ligne droite ou un motif cyclique simple quand c'est géométriquement
-  possible.
-
-- **Élargir le pool de candidats gardés par `find_path`** : actuellement
-  les 100 chemins de plus courte longueur brute. Envisager d'accepter
-  aussi des chemins légèrement plus longs (+X%) qui seraient plus
-  répétitifs — la phase 1 (glouton rapide) sert déjà de filtre pour
-  ne pas payer cher l'exploration de candidats supplémentaires.
-
-C'est un chantier qui touche `bfs.rs` (pas seulement `encode.rs`), donc
-à traiter comme une session à part plutôt qu'un ajustement rapide.
-
-### 4. Vérifier la validité stricte des chemins (filet de sécurité, non urgent)
-`bfs()` (point-à-point, utilisé dans `prepare`) ne bloque que sur
-`Cell::Wall` — un switch/champ intermédiaire *en transit* (ni départ ni
-cible du segment) est traversé sans déclencher son effet dans le calcul
-du graphe, alors qu'en jeu réel marcher dessus togglerait toujours l'état.
-Risque théorique de divergence entre l'état supposé par le solveur et
-l'état réel du jeu. Pas de cas confirmé à ce jour, mais une simulation de
-validation complète du chemin final avant compression serait un bon
-filet de sécurité si des bugs difficiles à expliquer apparaissent.
-
-## Slack des coups perdus (état actuel, à lire en premier)
-
-Le code a divergé de la description historique ci-dessus : `bfs::solve` est un
-BFS d'état complet qui renvoie UN seul plus court chemin.
-
-- `src/sim.rs` : simulateur fidèle au moteur (source Bender4 : Robot/Box/
-  Interpreter/Referee), sur la carte NON simplifiée (`raw_board`, clone pris
-  avant `simplify`). Points du moteur non évidents : une ball se pousse sur
-  n'importe quelle case libre (champ actif compris), 1000 tours max (appels et
-  retours de fonction comptent), un chiffre est un coup à vide.
-  `wins()` valide un programme complet ; `main` l'utilise en garde-fou.
-- Idée : un coup contre un mur est gratuit, donc une ligne droite qui finit
-  contre un mur peut avoir n'importe quelle longueur >= la longueur nécessaire.
-  `sim::repeat_is_free` marque ces lignes, `encoder::split_runs` les découpe,
-  `widen_variants` / `tune_lengths` choisissent les longueurs pour maximiser
-  la répétition avant compression (>50 % des lignes sont extensibles).
-- Bench release : 1976 (avant) -> 1906 (élargissement uniforme) -> 1877
-  (longueur min par direction, descente de coordonnées). Temps max ~0.78 s.
-- Pistes suivantes : insérer des coups perdus n'importe où (pas seulement en
-  fin de ligne), choix par ligne plutôt que par direction, recherche directe
-  sur les programmes. Le BFS (~350 ms) reste le poste de temps principal.
-
-## Fichiers concernés
-
-- `src/board.rs` : représentation + simplifications de la grille.
-- `src/bfs.rs` : recherche de chemin (BFS point-à-point + Dijkstra sur graphe
-  compressé). **Cible principale du point 3.**
-- `src/encode.rs` : compression du chemin en programme avec fonctions.
-- `src/loader.rs` : parsing de l'input CodinGame.
-- `src/main.rs` : orchestration, deadlines, pipeline 2 phases.
-
-### 5. Benchmarking
-
-Utilise `full_bench.py` to test the code agains the 30 public tests cases. There is 3 options:
+## Benchmarking
 
 ```
-python full_bench.py python
-python full_bench.py rust
-python full_bench.py rust_release
-```
-
-But for rust, it requires a build from cargo 
-```
-cargo build
 cargo build --release
+python full_bench.py rust_release              # 30 tests publics
+python full_bench.py rust_release validators   # 30 validateurs CG
+cargo test --release                           # dont la vérification du simulateur rapide
 ```
+
+Le résultat varie d'un lancement à l'autre (dépend du temps machine) : pour
+comparer deux réglages, moyenner plusieurs graines (`SEED=1..4`) sur les deux
+jeux de cartes ; l'écart-type de la somme est d'environ ±40 avec 4 graines.

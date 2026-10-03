@@ -43,13 +43,7 @@ impl State {
         self.magnetic_fields & (1 << idx) != 0
     }
 
-    pub fn get_actions(&self) -> &String {
-        &self.actions
-    }
 
-    pub fn add_actions(&mut self, s: &char) {
-        self.actions.push(*s);
-    }
 
     pub fn get_current_pos(&self) -> usize {
         self.current_pos
@@ -72,10 +66,6 @@ impl State {
         self.move_balls.push(0);
     }
 
-    pub fn remove_garbage_ball_by_idx(&mut self, idx: usize) {
-        self.garbage_balls.remove(idx);
-        self.move_balls.remove(idx);
-    }
 
     /// Déplace la ball située en `from_idx` vers `to_idx` (no-op si pas de ball).
     pub fn move_ball(&mut self, from_idx: usize, to_idx: usize) {
@@ -89,42 +79,6 @@ impl State {
         self.garbage_balls.iter().position(|&x| x == idx)
     }
 
-    /// Tente de pousser la ball en `garbage_ball_position` (depuis la position courante).
-    /// Retourne le nouvel état (ball déplacée + champ togglé), ou None si interdit.
-    /// Élagage volontaire : on ne pousse qu'une ball qui atterrit sur un switch.
-    /// NB : la position du joueur et `actions` sont mis à jour par l'appelant.
-    pub fn try_push(&self, board: &Board, garbage_ball_position: usize) -> Option<State> {
-        let target_ball = garbage_ball_position * 2 - self.current_pos; // ball + (ball - me)
-
-        // cannot move the ball more than N times
-        if let Some(ball_id) = self.get_ball_id(garbage_ball_position) {
-            if self.move_balls[ball_id] >= 4 {
-                return None;
-            }
-        }
-
-        // cannot push the ball to the target
-        if target_ball == board.get_target() {
-            return None;
-        }
-
-        // cannot push the ball to another garbage ball
-        if self.is_garbage_ball(target_ball) {
-            return None;
-        }
-
-        match board.get_cell(target_ball) {
-            // Pruning: a ball is only worth pushing when it lands directly on a switch
-            // (maps are solvable without moving any ball, so this only loses shorter paths).
-            Cell::Wall | Cell::MagneticField(_) | Cell::Empty => None,
-            Cell::Switch(id) => {
-                let mut new_state = self.clone();
-                new_state.move_ball(garbage_ball_position, target_ball);
-                new_state.toggle_magnetic_field(*id);
-                Some(new_state)
-            }
-        }
-    }
 }
 
 impl Clone for State {
@@ -250,66 +204,5 @@ impl Board {
             }
             eprintln!();
         }
-    }
-
-    /// Transforme en mur les culs-de-sac (case vide à 3 murs, hors start/target),
-    /// en boucle jusqu'à stabilité. Réduit l'espace de recherche.
-    fn simplify_deadend(&mut self) {
-        let offset = [-1, 1, -21, 21];
-
-        let mut improved = true;
-        while improved {
-            improved = false;
-            for y in 1..20 {
-                for x in 1..20 {
-                    let idx = y * 21 + x;
-                    if idx == self.start || idx == self.target {
-                        continue;
-                    }
-
-                    if self.board[idx] == Cell::Empty {
-                        let mut count = 0;
-                        for &o in offset.iter() {
-                            let new_idx = (idx as i32 + o) as usize;
-                            if self.board[new_idx] == Cell::Wall {
-                                count += 1;
-                            }
-                        }
-                        if count == 3 {
-                            self.board[idx] = Cell::Wall;
-                            improved = true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /// Une ball coincée dans un coin (2 murs adjacents perpendiculaires) est
-    /// immobile pour toujours : on la convertit en mur et on la retire de `state`.
-    fn simplify_balls(&mut self, state: &mut State) {
-        let mut idx_to_change = vec![];
-        let corners = [(-1, -21), (1, -21), (-1, 21), (1, 21)];
-        for (i, &ball) in state.get_garbage_balls().iter().enumerate() {
-            for (corner1, corner2) in corners.iter() {
-                let idx1 = (ball as i32 + corner1) as usize;
-                let idx2 = (ball as i32 + corner2) as usize;
-                if (self.board[idx1] == Cell::Wall) && (self.board[idx2] == Cell::Wall) {
-                    self.board[ball] = Cell::Wall;
-                    idx_to_change.push(i);
-                    break;
-                }
-            }
-        }
-
-        for &idx in idx_to_change.iter().rev() {
-            state.remove_garbage_ball_by_idx(idx);
-        }
-    }
-
-    /// Applique toutes les simplifications (à appeler une fois après le chargement).
-    pub fn simplify(&mut self, state: &mut State) {
-        self.simplify_balls(state);
-        self.simplify_deadend();
     }
 }

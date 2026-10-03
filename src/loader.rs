@@ -1,5 +1,5 @@
 use crate::board::{Board, Cell, State};
-use std::io;
+use std::io::{self, BufRead};
 
 /// Parse une chaîne (trim) vers le type `$t`, panique si invalide.
 macro_rules! parse_input {
@@ -12,11 +12,16 @@ macro_rules! parse_input {
 /// les switchs (position du switch, position du champ, état initial).
 /// Retourne le `Board` (statique) et le `State` initial (position, balls, champs actifs).
 pub fn load_inputs() -> (Board, State) {
+    load_from(&mut io::stdin().lock())
+}
+
+/// Comme `load_inputs`, depuis n'importe quel lecteur (tests).
+pub fn load_from(reader: &mut impl BufRead) -> (Board, State) {
     let mut board = Board::new();
     let mut state = State::new(0);
 
     let mut input_line = String::new();
-    io::stdin().read_line(&mut input_line).unwrap();
+    reader.read_line(&mut input_line).unwrap();
     let inputs = input_line.split(' ').collect::<Vec<_>>();
     let _width = parse_input!(inputs[0], i32);
     let height = parse_input!(inputs[1], i32);
@@ -24,7 +29,7 @@ pub fn load_inputs() -> (Board, State) {
     // load the board
     for row in 0..height as usize {
         input_line.clear();
-        io::stdin().read_line(&mut input_line).unwrap();
+        reader.read_line(&mut input_line).unwrap();
         for (col, letter) in input_line.trim_matches('\n').chars().enumerate() {
             match letter {
                 '#' => board.set_cell(col, row, Cell::Wall),
@@ -40,13 +45,13 @@ pub fn load_inputs() -> (Board, State) {
 
     // load the start and target positions
     input_line.clear();
-    io::stdin().read_line(&mut input_line).unwrap();
+    reader.read_line(&mut input_line).unwrap();
     let inputs = input_line.split(' ').collect::<Vec<_>>();
     let start_x = parse_input!(inputs[0], i32);
     let start_y = parse_input!(inputs[1], i32);
 
     input_line.clear();
-    io::stdin().read_line(&mut input_line).unwrap();
+    reader.read_line(&mut input_line).unwrap();
     let inputs = input_line.split(' ').collect::<Vec<_>>();
     let target_x = parse_input!(inputs[0], i32);
     let target_y = parse_input!(inputs[1], i32);
@@ -56,11 +61,11 @@ pub fn load_inputs() -> (Board, State) {
 
     // load the magnetic fields
     input_line.clear();
-    io::stdin().read_line(&mut input_line).unwrap();
+    reader.read_line(&mut input_line).unwrap();
     let switch_count = parse_input!(input_line, i32);
     for i in 0..switch_count as usize {
         input_line.clear();
-        io::stdin().read_line(&mut input_line).unwrap();
+        reader.read_line(&mut input_line).unwrap();
         let inputs = input_line.split(' ').collect::<Vec<_>>();
         let switch_x = parse_input!(inputs[0], usize);
         let switch_y = parse_input!(inputs[1], usize);

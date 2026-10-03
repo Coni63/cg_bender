@@ -7,20 +7,24 @@ from pathlib import Path
 #  python full_bench.py python
 #  python full_bench.py rust
 #  python full_bench.py rust_release
-kind = sys.argv[-1]
+#  python full_bench.py rust_release validators   (cartes des validateurs CG)
+validators = sys.argv[-1] == "validators"
+kind = sys.argv[-2] if validators else sys.argv[-1]
+root = Path(__file__).resolve().parent
 
 if kind == "python":
     cmd = ['python', 'dev_py/main.py']
 elif kind == "rust":
-    cmd = ['target/debug/cg_bender.exe']
+    cmd = [str(root / 'target' / 'debug' / 'cg_bender.exe')]
 elif kind == "rust_release":
-    cmd = ['target/release/cg_bender.exe']
+    cmd = [str(root / 'target' / 'release' / 'cg_bender.exe')]
 else:
     print("Invalid argument")
     sys.exit(1)
 
 
-test_files = [f"tests/{i}.txt" for i in range(1, 31)]
+test_dir = root / "tests" / ("validators" if validators else "")
+test_files = [test_dir / f"{i}.txt" for i in range(1, 31)]
 
 ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 

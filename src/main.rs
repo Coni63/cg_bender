@@ -1,96 +1,118 @@
-mod bfs;
 mod board;
 mod encoder;
 mod loader;
+mod search;
 mod sim;
 
 use std::time::{Duration, Instant};
 
-use bfs::solve;
-use encoder::{cost_of, deep_compress, quick_compress, split_runs, stringify, tune_lengths, widen_variants};
+use encoder::{cost_of, deep_compress, quick_compress, split_runs, stringify, widen_variants};
 use loader::load_inputs;
+use search::{Rng, World};
 
-/// Pipeline : charge -> simplifie la grille -> cherche un chemin -> compresse.
-/// Budget temps total ~850 ms (Rust non optimisé sur CodinGame).
+/// Pipeline : charge -> table de distance -> plus courts chemins variés ->
+/// compression -> recuit simulé directement sur le programme.
+/// Budget temps total ~850 ms (limite CodinGame : 1 s au premier tour),
+/// modifiable via la variable d'environnement BENDER_MS pour les essais hors
+/// ligne. Les autres paramètres (`search::param`) se règlent de la même façon.
 /// Le programme compressé est écrit sur stdout, les logs sur stderr.
 fn main() {
-    let (mut board, mut state) = load_inputs();
+    let (board, state) = load_inputs();
+    let timer = Instant::now();
+    let budget: u64 = std::env::var("BENDER_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(850);
+    let at = |frac: f64| timer + Duration::from_millis((budget as f64 * frac) as u64);
 
-    let timer = std::time::Instant::now();
-    // La simulation exacte tourne sur la carte d'origine (avant simplification).
-    let raw_board = board.clone();
-    let raw_state = state.clone();
+    let world = World::new(&board, &state);
+    eprintln!("distance table: {:?}, start dist {}", timer.elapsed(), world.start_dist());
 
-    let step_timer = std::time::Instant::now();
-    board.simplify(&mut state);
-    eprintln!("Simplify the board tooks {:?}", step_timer.elapsed());
-
-    let step_timer = std::time::Instant::now();
-    let states = solve(&board, &state);
-    eprintln!("Finding the solution tooks {:?}", step_timer.elapsed());
-
-    let step_timer = std::time::Instant::now();
-
-    // Phase 1 : passe gloutonne rapide sur tous les candidats pour identifier
-    // les plus prometteurs (quasi gratuit, sert de filtre de compressibilité).
-    let mut candidates: Vec<String> = states.iter().map(|s| s.get_actions().clone()).collect();
-    if let Some(base) = candidates.first().cloned() {
-        eprintln!("solver path valid: {}", sim::wins(&raw_board, &raw_state, &base));
-        let free = sim::repeat_is_free(&raw_board, &raw_state, &base);
-        let runs = split_runs(&base, &free);
-        eprintln!(
-            "runs: {}, extensible: {}",
-            runs.len(),
-            runs.iter().filter(|r| r.2).count()
-        );
-        candidates.extend(widen_variants(&runs, 12));
-        candidates.push(tune_lengths(&runs, 12, timer + Duration::from_millis(500)));
+    // Phase 1 : plusieurs plus courts chemins tirés au hasard (biais ligne
+    // droite variable), élargis contre les murs, filtrés par le glouton.
+    let mut rng = Rng::new((search::param("SEED", 12345.0) as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15));
+    let mut candidates: Vec<String> = vec![];
+    let paths_deadline = at(search::param("F_PATHS", 0.05));
+    let mut seen = std::collections::HashSet::new();
+    let mut k = 0u32;
+    // au moins quelques chemins même si la table de distance a mangé le budget
+    while (k < 5 || Instant::now() < paths_deadline) && k < 400 {
+        let straight = [256, 230, 200, 160, 128][k as usize % 5];
+        k += 1;
+        let path = world.random_shortest_path(&mut rng, straight);
+        if path.is_empty() || !seen.insert(path.clone()) {
+            continue;
+        }
+        let free = sim::repeat_is_free(&board, &state, &path);
+        let runs = split_runs(&path, &free);
+        candidates.push(path);
+        candidates.extend(widen_variants(&runs, 6));
     }
-    let mut scored: Vec<(usize, String)> = candidates
-        .into_iter()
-        .map(|actions| {
-            let (core, macros) = quick_compress(&actions);
-            (cost_of(&core, &macros), actions)
-        })
-        .collect();
-    scored.sort_by_key(|(c, _)| *c);
+    eprintln!("{} paths, {} candidates ({:?})", seen.len(), candidates.len(), timer.elapsed());
 
-    eprintln!(
-        "Quick pass took {:?}, best quick score: {}",
-        step_timer.elapsed(),
-        scored.first().map(|(c, _)| *c).unwrap_or(0)
-    );
-
-    // Phase 2 : branchement approfondi seulement sur le top-K des candidats
-    // déjà identifiés comme les plus compressibles.
-    const TOP_K: usize = 5;
-    let compression_deadline = timer + Duration::from_millis(850);
-
-    let mut shortest_path = String::new();
-    let mut min_dist = usize::MAX;
-
-    // On garde d'abord le meilleur résultat de la phase 1 comme baseline,
-    // au cas où la phase 2 serait interrompue avant même le premier candidat.
-    if let Some((c, s)) = scored.first() {
-        let (core, macros) = quick_compress(s);
-        shortest_path = stringify(&core, &macros);
-        min_dist = *c;
-    }
-
-    for (_, actions) in scored.iter().take(TOP_K) {
-        if Instant::now() >= compression_deadline {
-            eprintln!("Deep compression deadline reached, stopping early");
+    let mut scored: Vec<(usize, String)> = vec![];
+    let quick_deadline = at(search::param("F_QUICK", 0.08));
+    for actions in candidates {
+        if Instant::now() >= quick_deadline && !scored.is_empty() {
             break;
         }
-        let encoded = deep_compress(actions, compression_deadline);
-        if encoded.len() < min_dist {
-            min_dist = encoded.len();
-            shortest_path = encoded;
+        let (core, macros) = quick_compress(&actions);
+        scored.push((cost_of(&core, &macros), actions));
+    }
+    scored.sort_by_key(|(c, _)| *c);
+    eprintln!("quick pass on {} ({:?}), best {}", scored.len(), timer.elapsed(), scored[0].0);
+
+    // Phase 2 : compression approfondie (branchement) sur le top-K.
+    let top_k = search::param("TOP_K", 3.0) as usize;
+    let deep_deadline = at(search::param("F_DEEP", 0.08));
+    let mut programs: Vec<String> = vec![];
+    for (_, actions) in scored.iter().take(top_k) {
+        let (core, macros) = quick_compress(actions);
+        programs.push(stringify(&core, &macros));
+        if Instant::now() < deep_deadline {
+            programs.push(deep_compress(actions, deep_deadline));
         }
     }
-    eprintln!("final program valid: {}", sim::wins(&raw_board, &raw_state, &shortest_path));
-    eprintln!("Encoding the solution tooks {:?}", step_timer.elapsed());
-    eprintln!("Total Time: {:?}", timer.elapsed());
+    programs.retain(|p| sim::wins(&board, &state, p));
+    if programs.is_empty() {
+        programs.push(scored[0].1.clone()); // chemin brut, toujours valide
+    }
+    programs.sort_by_key(|p| p.len());
+    eprintln!("deep pass ({:?}), best {}", timer.elapsed(), programs[0].len());
 
-    println!("{}", shortest_path)
+    // Phase 3 : recuit simulé directement sur le programme (le juge n'exige pas
+    // de reproduire un chemin, seulement d'atteindre Fry).
+    //  - exploration : température haute, pénalité de distance modérée ; la
+    //    chaîne rétrécit le programme en passant souvent par des programmes
+    //    perdants, on garde chaque programme gagnant plus court croisé en route ;
+    //  - affinage : pénalité forte (on reste parmi les programmes gagnants),
+    //    depuis le meilleur programme gagnant trouvé ;
+    //  - enfin, fonctions fixées, BFS exact sur le main.
+    let p = search::param;
+    let explore = (p("E_L", 3.0), p("E_T0", 3.0), p("E_T1", 0.5));
+    let refine = (p("R_L", 20.0), p("R_T0", 1.0), p("R_T1", 0.1));
+    let explore_runs = p("E_RUNS", 2.0) as usize;
+    let sa_end = at(1.0);
+    let explore_end = Instant::now() + sa_end.saturating_duration_since(Instant::now()).mul_f64(p("E_FRAC", 0.7));
+    let mut pool: Vec<search::Prog> = programs.iter().map(|s| search::parse(s)).collect();
+    for i in 0..explore_runs {
+        let now = Instant::now();
+        let end = now + explore_end.saturating_duration_since(now) / (explore_runs - i) as u32;
+        let start = pool[i % programs.len()].clone();
+        pool.push(search::anneal(&world, &start, explore, end, &mut rng));
+    }
+    pool.sort_by_key(search::prog_cost);
+    let mut prog = search::anneal(&world, &pool[0], refine, sa_end, &mut rng);
+    let t = Instant::now();
+    let before = search::prog_cost(&prog);
+    if let Some(better) = world.best_main(&prog, sa_end + Duration::from_millis(15)) {
+        prog = better;
+    }
+    eprintln!("best_main: {} -> {} ({:?})", before, search::prog_cost(&prog), t.elapsed());
+    let out = search::to_string(&prog);
+    let mut best = programs[0].clone();
+    if out.len() < best.len() && sim::wins(&board, &state, &out) {
+        best = out;
+    }
+
+    eprintln!("final program valid: {}", sim::wins(&board, &state, &best));
+    eprintln!("Total Time: {:?}", timer.elapsed());
+    println!("{}", best)
 }
